@@ -1,0 +1,17 @@
+introduction
+figure-2
+relevant-criticisms
+proposed-approach
+effect-size-and-confidence-intervals
+power-calculation
+interpreting-negative-results
+miscellaneous
+figure-3
+relevant-criticisms-1
+proposed-approach-1
+figure-4
+relevant-criticisms-2
+proposed-approach-2
+supplementary-figure-1
+relevant-criticisms-3
+proposed-approach-3

@@ -1,0 +1,13 @@
+# Figure 4
+
+## Relevant criticisms
+
+- Unsure
+
+## Proposed approach
+
+- If we want to re-analyse this, could fit a mixed-effects model as follows:
+  - hladr_mfi ~ days_since_vaccination
+    - Can check whether any days are significant
+- Power calculation
+  - Probably just simulate

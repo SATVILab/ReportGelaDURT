@@ -1,0 +1,11 @@
+--- 
+title: "Gela, 2021 - Effects of BCG vaccination in donor unrestricted T cells in humans"
+author: "Anele Gela, Melissa Murphy Kate Hadley, Willem A. Hanekom, W. Henry Boom, John L. Johnson, Daniel F. Hoft, Simone A. Joosten, Tom H.M. Ottenhoff, Sara Suliman, D. Branch Moody, David M. Lewinsohn, Mark Hatherill, Chetan Seshadri, Elisa Nemes, and Thomas J. Scriba, and the Delayed BCG Study Team."
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: book
+biblio-style: apalike
+link-citations: yes
+---
+
+# Introduction

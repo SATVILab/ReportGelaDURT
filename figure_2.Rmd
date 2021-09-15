@@ -1,0 +1,393 @@
+# Figure 2
+
+## Relevant criticisms
+
+- 3.1.b
+  - Power calculations
+- 3.1.d
+  - Compute effect sizes and 95% CI
+- 3.2
+  - Add confounders
+- 3.3
+  - Control a more stringent error rate
+- 7
+  - Sharing raw data
+    - Link raw data to raw data used to re-generate analyses
+
+## Proposed approach
+
+
+### Effect size and confidence intervals
+
+- Use the `quantreg` package 
+
+- Questions
+  - Do we want to put the effect sizes for age in a figure in the supp
+  - Do we want to add confounders? (address point 3.2)
+    - If they do explain some of the variation, they may make the analysis slightly more powerful (not that this is of particular relevance, but it may help)
+
+
+- Given that there are not many comparisons (making the BH less reliable) and the Bonferroni would probably give you basically the same results, I suggest using the Bonferroni
+- Also since power calc is much easier using Bonferroni (see below)
+
+### Power calculation
+
+- Power relative to:
+  - Difference in medians
+  - Probability of obs from one group exceeding obs from another group
+- Method
+  - Could simply simulate
+  - Much easier to do this when correcting using Bonferroni method, as the probability of picking a difference up depends on the actual differences in other tests, which obviously complicates things
+
+### Interpreting negative results
+
+- Comment 3.1.c says that the paper should acknowledge that clinically-relevant differences may have been missed due to a lack of power
+  - Of course that's always true, but I think that the degree to which this is likely may be addressed in the following way
+    - For each non-significant finding:
+      - Calculate the 95% CI for the effect size
+      - Divide the upper and lower bounds by the standard deviation of the response
+      - This gives an estimate of the range of signal-to-noise values that are plausible given the data
+      - If these values are all small, then it would seem unlikely that vaccination can induce a clinically relevant effect by modulating this immune response, as clearly there is a lot else that influences this immune response
+  - He may counter that some of the noise is due to measurement error, but oh well
+    - This is relevant primarily for the very rare subsets, but not so much for the non-rare ones
+    - The modelling approach used would "adjust" for the rarity of the cells making estimation of the actual frequency for a person harder, anyway
+  - Using this approach, one can rule out very large effect sizes
+- Questions
+  - Not quite clear what a reasonable scale would be
+    - Log10? Square root? Identity?
+    
+### Miscellaneous
+
+- Figure generation
+  - I can export the data for plotting, which Anele and/or Melisa (AM) can then create figures from
+- Data sharing
+  - I would put whatever data I use into a folder, `DataRawGelaDURT`, and then the processed data into an R package called `DataTidyGelaDURT` that uses `DataRawGelaDURT`. 
+    - Open to other names (from Data[Raw/Tidy] onwards)
+
+## Data exploration
+
+```{r }
+library(quantreg)
+library(magrittr)
+library(ggplot2)
+data_tidy_freq <- DataTidyGelaDURT::data_tidy_freq %>%
+  tibble::as_tibble()
+data_tidy_clin_infant <- DataTidyGelaDURT::data_tidy_clin_infant
+data_mod_freq_infant <- data_tidy_freq %>%
+  dplyr::filter(grepl("infant", pid)) %>%
+  dplyr::left_join(
+    data_tidy_clin_infant, 
+    by = "pid"
+  )
+data_tidy_clin_adult <- DataTidyGelaDURT::data_tidy_clin_adult
+data_mod_freq_adult <- data_tidy_freq %>%
+  dplyr::filter(grepl("adult", pid)) %>%
+  dplyr::left_join(
+    data_tidy_clin_adult, 
+    by = "pid"
+  )
+```
+
+### Infants
+
+#### Confounders
+
+##### Continuous
+
+###### Response against variable
+
+```{r }
+data_plot_freq_infant_cont <- data_mod_freq_infant %>%
+  dplyr::select(-age) %>%
+  tidyr::pivot_longer(
+    gest_age:head_circ, 
+    names_to = "conf_cont", 
+    values_to = "value"
+  )
+ggplot(
+  data_plot_freq_infant_cont, 
+  aes(x = value, y = freq, col = bcg)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  facet_wrap(pop ~ conf_cont, 
+             ncol = 4, 
+             scales = "free") 
+```
+
+###### Variable by BCG status
+
+BCG papers appear slightly longer with slightly higher gestational ages, and are possibly heavier.
+
+```{r }
+ggplot(
+  data_plot_freq_infant_cont %>%
+    dplyr::group_by(conf_cont) %>%
+    dplyr::mutate(value = (value - mean(value, na.rm = TRUE)) / sd(value, na.rm = TRUE)) %>%
+    dplyr::ungroup(), 
+  aes(x = value, col = bcg)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  # geom_histogram(position = "dodge") +
+  geom_density(bw = 0.4) +
+  facet_wrap( ~ conf_cont, 
+             ncol = 4, 
+             scales = "free") 
+```
+
+#### Categorical
+
+Appears to be strong ethnicity effects.
+
+```{r }
+ggplot(
+  data_mod_freq_infant, 
+  aes(x = bcg, y = freq, fill = ethnicity)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_point() +
+  geom_boxplot(
+    position = "dodge"
+  ) +
+  facet_wrap(~pop, 
+             ncol = 4, 
+             scales = "free_y") 
+data_plot_freq_infant_cont <- data_mod_freq_infant %>%
+  dplyr::select(-age) %>%
+  tidyr::pivot_longer(
+    gest_age:head_circ, 
+    names_to = "conf_cont", 
+    values_to = "value"
+  )
+ggplot(
+  data_plot_freq_infant_cont, 
+  aes(x = value, y = freq, col = bcg)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  facet_wrap(pop ~ conf_cont, 
+             ncol = 4, 
+             scales = "free") 
+```
+
+### Adults
+
+```{r }
+data_mod_freq_adult
+ggplot(data_mod_freq_adult %>%
+         dplyr::mutate(
+           bcg = factor(
+             bcg, 
+             levels = c("before", "after")
+           )
+         ), 
+       aes(x = bcg, y = freq)) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_boxplot() + 
+  facet_wrap(~pop, ncol = 4, scales = "free_y")
+```
+
+## Analysis
+
+### Infants
+
+- TODO:
+  - Calculate CI's for individual BCG groups (also for adult)
+  - Calculate sd of response (within each bcg group)
+    - Or, I suppose you could take the error estimate from the model
+    - Then, divide the CI for the difference by this
+    - This will then form the standardised effect estimate in the plot
+
+```{r }
+pop_vec <- unique(data_mod_freq_infant$pop)
+pop <- "mait"
+conf_vec_infant <- c(
+  "none" = "", 
+  "pre_specified" = " + ethnicity", 
+  "data_specified" = " + ethnicity + length + gest_age + weight"
+  )
+results_tbl <- purrr::map_df(pop_vec, function(pop) {
+  print(pop)
+  data_mod <- data_mod_freq_infant %>%
+    dplyr::filter(pop == .env$pop)
+  
+  purrr::map_df(seq_along(conf_vec_infant), function(i) {
+    
+    if (!data_mod$pop[1] %in% c("gem", "cd4_ifng")) {
+      data_mod <- data_mod %>% 
+        dplyr::mutate(freq = log10(freq))
+      } else {
+        data_mod <- data_mod %>% 
+          dplyr::mutate(freq = freq ^ 0.25)
+        }
+    
+
+  data_mod <- data_mod %>%
+    dplyr::mutate(
+      bcg = factor(
+        bcg, 
+        levels = c("no bcg", "bcg")
+      )
+    )
+  fml_txt_base <- "freq ~ 1"
+  fml_txt_null <- paste0(fml_txt_base, conf_vec_infant[i])
+  fml_txt_trt <- paste0(fml_txt_null, " + bcg")
+  fml_null <- eval(parse(text = fml_txt_null))
+  fml_trt <- eval(parse(text = fml_txt_trt))
+  fit_large <- try(quantreg::rq(
+    fml_trt, 
+    tau = 0.5,
+    data = data_mod
+  ), silent = TRUE)
+  fit_small <- try(quantreg::rq(
+    fml_null, 
+    tau = 0.5,
+    data = data_mod
+  ), silent = TRUE)
+  
+  coef_tbl <- coefficients(summary(fit_large)) 
+  ind_bcg <- which(rownames(coef_tbl) == "bcgbcg")
+  coef_vec <- coef_tbl[ind_bcg, c("lower bd", "upper bd")] %>%
+    as.vector()
+
+  
+  if(class(fit_large)[1] == "try-error" || 
+     class(fit_small)[1] == "try-error") {
+    return(
+      tibble::tibble(
+        pop = pop,
+        age = "infant",
+        conf = names(conf_vec_infant)[i],
+        p = NA, 
+        lb = NA,
+        ub = NA
+      )
+    )
+    }
+
+  anova_fit <- anova(fit_large, fit_small)
+  
+  tibble::tibble(
+    pop = pop,
+    age = "infant",
+    conf = names(conf_vec_infant)[i],
+    p = anova_fit$table$pvalue, 
+    lb = coef_vec[1], 
+    ub = coef_vec[2]
+  )
+  })
+})
+results_tbl %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(p_bonf = p.adjust(p, method = "bonf"))
+```
+
+### Adults
+
+```{r }
+pop_vec <- unique(data_mod_freq_adult$pop)
+pop <- "mait"
+
+results_tbl <- purrr::map_df(pop_vec, function(pop) {
+  print(pop)
+  data_mod <- data_mod_freq_adult %>%
+    dplyr::filter(pop == .env$pop)
+  
+  data_mod <- data_mod %>%
+    tidyr::pivot_wider(
+      values_from = "freq", 
+      names_from = "bcg"
+    ) 
+  
+  p <- wilcox.test(
+    data_mod$before, 
+    data_mod$after, 
+    paired = TRUE
+  )
+    
+
+
+  
+  @[p[if (FALSE) {
+    data_mod_diff_no <- data_mod %>%
+      dplyr::mutate(
+        bcg = factor(
+          bcg, 
+          levels = c("no bcg", "bcg")
+        )
+      )
+      fml_txt_base <- "freq ~ 1"
+    fml_txt_null <- paste0(fml_txt_base, conf_vec_infant[i])
+    fml_txt_trt <- paste0(fml_txt_null, " + bcg")
+    fml_null <- eval(parse(text = fml_txt_null))
+    fml_trt <- eval(parse(text = fml_txt_trt))
+    fit_large <- try(quantreg::rq(
+      fml_trt, 
+      tau = 0.5,
+      data = data_mod
+    ), silent = TRUE)
+    fit_small <- try(quantreg::rq(
+      fml_null, 
+      tau = 0.5,
+      data = data_mod
+    ), silent = TRUE)
+    
+    coef_tbl <- coefficients(summary(fit_large)) 
+    ind_bcg <- which(rownames(coef_tbl) == "bcgbcg")
+    coef_vec <- coef_tbl[ind_bcg, c("lower bd", "upper bd")] %>%
+      as.vector()
+  }
+
+    fit_large <- try(quantreg::rq(
+      freq ~ 1, 
+      tau = 0.5,
+      data = data_mod
+    ), silent = TRUE)
+    fit_small <- try(quantreg::rq(
+      freq  ~ -1, 
+      tau = 0.5,
+      data = data_mod
+    ), silent = TRUE)
+
+  
+  if(class(fit_large)[1] == "try-error" || 
+     class(fit_small)[1] == "try-error") {
+    return(
+      tibble::tibble(
+        pop = pop,
+        age = "infant",
+        conf = names(conf_vec_infant)[i],
+        p = NA, 
+        lb = NA,
+        ub = NA
+      )
+    )
+    }
+
+  anova_fit <- anova(fit_large, fit_small)
+  
+  tibble::tibble(
+    pop = pop,
+    age = "infant",
+    conf = names(conf_vec_infant)[i],
+    p = anova_fit$table$pvalue, 
+    lb = coef_vec[1], 
+    ub = coef_vec[2]
+  )
+
+})
+results_tbl %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(p_bonf = p.adjust(p, method = "bonf"))
+```
+
+### Display
+
+- Do we not want to rather just display CI's for the actual responses?

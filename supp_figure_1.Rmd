@@ -1,0 +1,10 @@
+# Supplementary Figure 1
+
+## Relevant criticisms
+
+- 3.8
+  - No formal statistical analysis done
+
+## Proposed approach
+
+- Same as for figure 4
