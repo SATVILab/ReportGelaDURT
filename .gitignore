@@ -1,0 +1,8 @@
+.Rproj.user/*
+*.Rproj
+.Rhistory
+.Rproj.user
+*zip
+*pdf
+*png
+*html
