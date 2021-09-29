@@ -67,12 +67,9 @@
 ## Data exploration
 
 ```{r }
-library(quantreg)
-library(magrittr)
-library(ggplot2)
 data_tidy_freq <- DataTidyGelaDURT::data_tidy_freq %>%
   tibble::as_tibble()
-data_tidy_clin_infant <- DataTidyGelaDURT::data_tidy_clin_infant
+
 data_mod_freq_infant <- data_tidy_freq %>%
   dplyr::filter(grepl("infant", pid)) %>%
   dplyr::left_join(
@@ -80,7 +77,7 @@ data_mod_freq_infant <- data_tidy_freq %>%
       dplyr::select(-bcg), 
     by = "pid"
   )
-data_tidy_clin_adult <- DataTidyGelaDURT::data_tidy_clin_adult
+
 data_mod_freq_adult <- data_tidy_freq %>%
   dplyr::filter(grepl("adult", pid)) %>%
   dplyr::left_join(
@@ -90,52 +87,6 @@ data_mod_freq_adult <- data_tidy_freq %>%
 ```
 
 ```{r }
-short_to_long_pop <- c(
-  "cd1b" = "CD1b", 
-  "cd4" = "CD4", 
-  "cd4_ifng" = "CD4 IFNg", 
-  "gd" = "TCRgd", 
-  "gem" = "GEM", 
-  "mait" = "MAIT", 
-  "nkt" = "NKT"
-)
-short_to_long_var_cont <- c(
-  "gest_age" = "Gest. age", 
-  "head_circ" = "Head circ.", 
-  "length" = "Length", 
-  "visit_age" = "Visit age", 
-  "weight" = "Weight", 
-  "age_in_years" = "Age (years)", 
-  "hgbval" = "HGB", 
-  "height" = "Height (cm)", 
-  "weight" = "Weight (kg)", 
-  "ppd" = "PPD (mm)"
-)
-short_to_display_bcg <- c(
-  "bcg" = "BCG", 
-  "no bcg" = "No BCG", 
-  "nobcg" = "No BCG", 
-  "before" = "Before", 
-  "after" = "After"
-)
-short_to_display_sex <- c(
-  "female" = "Female", 
-  "male" = "Male", 
-  "unknown" = "Unknown"
-)
-pop_vec <- unique(results_tbl_fig2_infant$pop)
-
-conf <- names(conf_vec_infant)[1]
-bcg_to_col <- c(
-  "no bcg" = "red", 
-  "bcg" = "dodgerblue"
-)
-trt_to_col <- c(
-  "No BCG" = "red", 
-  "BCG" = "dodgerblue",
-  "Before" = "red", 
-  "After" = "dodgerblue"
-)
 pop_to_lab_freq <- c(
   "mait" = "CD3+ MAIT cells (%)",
   "nkt" = "CD3+ NKT cells (%)",
@@ -164,9 +115,6 @@ pop_to_lab_freq_diff <- c(
   "cd4" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG")))), 
   "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG"))))
 )
-
-short_to_display_age <- c("infant" = "Infant", "adult" = "Adult", 
-                          "Infant" = "Infant", "Adult" = "Adult")
 ```
 
 ### Infants
@@ -236,17 +184,24 @@ p_cont <- ggplot(
   labs(x = "Value", y = "Frequency") +
   theme(legend.title = element_blank()) +
   geom_hline(yintercept = 0)
-dir.create(here::here(
-    "figures",
-    "fig_2", 
-    "data_exp"), recursive = TRUE)
+
+path_fig_rel_pdf <- file.path(
+  dir_fig_vec_rel["manu_n_exp"], 
+  "fig_2-p-infant-resp_vs_conf_cont.pdf"
+)
 cowplot::ggsave2(
-  here::here(
-    "figures",
-    "fig_2", 
-    "data_exp", 
-    "p-infant-resp_vs_conf_cont.png"
-  ), 
+  path_fig_rel_pdf, 
+  p_cont, 
+  height = 20, 
+  width = 20, 
+  units = "cm"
+)
+path_fig_rel_png <- file.path(
+  dir_fig_vec_rel["manu_n_exp"], 
+  "fig_2-p-infant-resp_vs_conf_cont.png"
+)
+cowplot::ggsave2(
+  path_fig_rel_png, 
   p_cont, 
   height = 20, 
   width = 20, 
@@ -255,7 +210,7 @@ cowplot::ggsave2(
 ```
 
 ```{r , results = "asis"}
-knitr::include_graphics("figures/fig_2/data_exp/p-infant-resp_vs_conf_cont.png")
+knitr::include_graphics(path_fig_rel)
 ```
 
 ###### Variable by BCG status
@@ -421,17 +376,24 @@ p_cont <- ggplot(
   labs(x = "Value", y = "Frequency") +
   theme(legend.title = element_blank()) +
   geom_hline(yintercept = 0)
-dir.create(here::here(
-    "figures",
-    "fig_2", 
-    "data_exp"), recursive = TRUE)
+
+path_fig_rel_pdf <- file.path(
+  dir_fig_vec_rel["manu_n_exp"], 
+  "fig_2-p-adult-resp_vs_conf_cont.pdf"
+)
 cowplot::ggsave2(
-  here::here(
-    "figures",
-    "fig_2", 
-    "data_exp", 
-    "p-adult-resp_vs_conf_cont.png"
-  ), 
+  path_fig_rel_pdf, 
+  p_cont, 
+  height = 20, 
+  width = 20, 
+  units = "cm"
+)
+path_fig_rel_png <- file.path(
+  dir_fig_vec_rel["manu_n_exp"], 
+  "fig_2-p-adult-resp_vs_conf_cont.png"
+)
+cowplot::ggsave2(
+  path_fig_rel_png, 
   p_cont, 
   height = 20, 
   width = 20, 
@@ -440,7 +402,7 @@ cowplot::ggsave2(
 ```
 
 ```{r , results = "asis"}
-knitr::include_graphics("figures/fig_2/data_exp/p-adult-resp_vs_conf_cont.png")
+knitr::include_graphics(path_fig_rel_png)
 ```
 
 ###### Variable by BCG status
@@ -544,9 +506,7 @@ ggplot(
 
 ### Effect of BCG
 
-#### Infants
-
-##### Calculation
+#### Calculation
 
 - TODO:
   - Calculate CI for effect size
@@ -574,7 +534,7 @@ conf_vec_infant <- c(
   "none" = "", 
   "pre_specified" = "+ sex + race"#, 
   # "data_specified" = " + ethnicity + length + gest_age + weight"
-  )[2]
+  )
 results_tbl_fig2_infant <- purrr::map_df(pop_vec, function(pop) {
   print(pop)
   data_mod <- data_mod_freq_infant %>%
@@ -610,6 +570,7 @@ results_tbl_fig2_infant <- purrr::map_df(pop_vec, function(pop) {
           levels = c("no bcg", "bcg")
         )
       )
+    if(i ==2 && pop == "gd") browser()
     fml_txt_base <- "freq ~ 1"
     fml_txt_null <- paste0(fml_txt_base, conf_vec_infant[i])
     fml_txt_trt <- paste0(fml_txt_null, " + bcg")
@@ -817,7 +778,7 @@ conf_vec_adult <- c(
   "none" = "", 
   "pre_specified" = "+ sex + race"#, 
   # "data_specified" = " + ethnicity + length + gest_age + weight"
-  )[2]
+  )
 results_tbl_fig2_adult <- purrr::map_df(pop_vec, function(pop) {
   print(pop)
   data_mod <- data_mod_freq_adult %>%
@@ -989,6 +950,7 @@ results_tbl_fig2_adult <- purrr::map_df(pop_vec, function(pop) {
           diff_p = NA
         )
     }
+    
     data_mod_wsc <- data_mod %>%
       tidyr::pivot_wider(
         names_from = "bcg", 
@@ -1085,7 +1047,7 @@ conf_vec <- c(
   "none" = "", 
   "pre_specified" = " + sex + sex:age + race + race:age + bcg + bcg:age"#, 
   # "data_specified" = " + ethnicity + length + gest_age + weight"
-  )[2]
+  )
 results_tbl_fig2_age <- purrr::map_df(pop_vec, function(pop) {
   print(pop)
   data_mod_adult <- data_mod_freq_adult %>%
@@ -1337,7 +1299,7 @@ results_tbl_fig2_age <- purrr::map_df(pop_vec, function(pop) {
 })
 ```
 
-###### Effect of BCG in infants
+##### Effect of BCG in infants
 
 ```{r , results = "asis"}
 results_tbl_fig2_infant %>%
@@ -1354,7 +1316,7 @@ results_tbl_fig2_infant %>%
   pander::pandoc.table()
 ```
 
-###### Effect of BCG in adults
+##### Effect of BCG in adults
 
 ```{r , results = "asis"}
 results_tbl_fig2_adult %>%
@@ -1374,7 +1336,7 @@ results_tbl_fig2_adult %>%
   pander::pandoc.table()
 ```
 
-###### Effect of age in individuals that received BCG
+##### Effect of age in individuals that received BCG
 
 ```{r , results = "asis"}
 results_tbl_fig2_age %>%
@@ -1390,68 +1352,18 @@ results_tbl_fig2_age %>%
   pander::pandoc.table()
 ```
 
-##### Plotting
+#### Plotting
 
 ```{r , include = FALSE}
+# ==============
+# Plot data
+# ==============
 
-plot_list_fig2 <- purrr::map(names(conf_vec_infant), function(conf) {
-  results_tbl_fig2_infant_conf <- results_tbl_fig2_infant %>%
-    dplyr::filter(conf == .env$conf) %>%
-    dplyr::select(pop, diff_p, diff_est_std_resid_small:diff_ub_std_resid_small,
-                  ctrl_grp_est:trt_grp_ub) %>%
-      dplyr::rename(
-        ctrl_est = ctrl_grp_est, 
-        trt_est = trt_grp_est,
-        ctrl_lb = ctrl_grp_lb, 
-        ctrl_ub = ctrl_grp_ub, 
-        trt_lb = trt_grp_lb, 
-        trt_ub = trt_grp_ub, 
-        diff_std_est = diff_est_std_resid_small, 
-        diff_std_lb = diff_lb_std_resid_small,
-        diff_std_ub = diff_ub_std_resid_small
-      ) %>%
-      dplyr::mutate(
-        age = "infant"
-      ) %>%
-    dplyr::mutate(
-      diff_p_bonf = p.adjust(diff_p, method = "bonf")
-    ) %>%
-    dplyr::select(
-      pop, age, diff_p, diff_p_bonf, everything()
-    )
-  results_tbl_fig2_adult_conf <- results_tbl_fig2_adult %>%
-    dplyr::filter(conf == .env$conf) %>%
-    dplyr::mutate(
-      diff_p = diff_p_wsc, 
-      diff_est = diff_est_wsc,
-      diff_lb = diff_lb_wsc, 
-      diff_ub = diff_ub_wsc
-    ) %>%
-    dplyr::rename(
-      ctrl_est = ctrl_grp_est, 
-      trt_est = trt_grp_est,
-      ctrl_lb = ctrl_grp_lb, 
-      ctrl_ub = ctrl_grp_ub, 
-      trt_lb = trt_grp_lb, 
-      trt_ub = trt_grp_ub
-    ) %>%
-    dplyr::mutate(
-      diff_std_est = diff_est / sd_resid_small,
-      diff_std_lb = diff_lb / sd_resid_small,
-      diff_std_ub = diff_ub / sd_resid_small
-    ) %>%
-    dplyr::mutate(
-      age = "adult"
-    ) %>%
-    dplyr::mutate(
-      diff_p_bonf = p.adjust(diff_p, method = "bonf")
-    ) %>%
-    dplyr::select(pop, age, diff_p, diff_p_bonf, ctrl_est:trt_ub,
-          diff_std_est:diff_std_ub) 
-  
-  results_tbl_fig2_age_conf <- results_tbl_fig2_age %>%
-    dplyr::filter(conf == .env$conf) %>%
-    dplyr::select(pop, diff_p, diff_est_std_resid_small:diff_ub_std_resid_small,
+# Without confounders
+# -----------------------
+results_tbl_fig2_infant_conf_none <- results_tbl_fig2_infant %>%
+  dplyr::filter(conf == "none") %>%
+  dplyr::select(pop, diff_p, diff_est_std_resid_large:diff_ub_std_resid_large,
                 ctrl_grp_est:trt_grp_ub) %>%
     dplyr::rename(
       ctrl_est = ctrl_grp_est, 
@@ -1460,31 +1372,168 @@ plot_list_fig2 <- purrr::map(names(conf_vec_infant), function(conf) {
       ctrl_ub = ctrl_grp_ub, 
       trt_lb = trt_grp_lb, 
       trt_ub = trt_grp_ub, 
-      diff_std_est = diff_est_std_resid_small, 
-      diff_std_lb = diff_lb_std_resid_small,
-      diff_std_ub = diff_ub_std_resid_small
+      diff_std_est = diff_est_std_resid_large, 
+      diff_std_lb = diff_lb_std_resid_large,
+      diff_std_ub = diff_ub_std_resid_large
     ) %>%
     dplyr::mutate(
-      age = "-"
+      age = "infant"
     ) %>%
   dplyr::mutate(
     diff_p_bonf = p.adjust(diff_p, method = "bonf")
   ) %>%
   dplyr::select(
-    pop, diff_p, diff_p_bonf, everything()
-    )
+    pop, age, diff_p, diff_p_bonf, everything()
+  )
+results_tbl_fig2_adult_conf_none <- results_tbl_fig2_adult %>%
+  dplyr::filter(conf == "pre_specified") %>%
+  dplyr::mutate(
+    diff_p = diff_p_wsc, 
+    diff_est = diff_est_wsc,
+    diff_lb = diff_lb_wsc, 
+    diff_ub = diff_ub_wsc
+  ) %>%
+  dplyr::rename(
+    ctrl_est = ctrl_grp_est, 
+    trt_est = trt_grp_est,
+    ctrl_lb = ctrl_grp_lb, 
+    ctrl_ub = ctrl_grp_ub, 
+    trt_lb = trt_grp_lb, 
+    trt_ub = trt_grp_ub
+  ) %>%
+  dplyr::mutate(
+    diff_std_est = diff_est / sd_resid_large,
+    diff_std_lb = diff_lb / sd_resid_large,
+    diff_std_ub = diff_ub / sd_resid_large
+  ) %>%
+  dplyr::mutate(
+    age = "adult"
+  ) %>%
+  dplyr::mutate(
+    diff_p_bonf = p.adjust(diff_p, method = "bonf")
+  ) %>%
+  dplyr::select(pop, age, diff_p, diff_p_bonf, ctrl_est:trt_ub,
+        diff_std_est:diff_std_ub) 
+
+results_tbl_fig2_age_conf_none <- results_tbl_fig2_age %>%
+  dplyr::filter(conf == "none") %>%
+  dplyr::select(pop, diff_p, diff_est_std_resid_large:diff_ub_std_resid_large,
+              ctrl_grp_est:trt_grp_ub) %>%
+  dplyr::rename(
+    ctrl_est = ctrl_grp_est, 
+    trt_est = trt_grp_est,
+    ctrl_lb = ctrl_grp_lb, 
+    ctrl_ub = ctrl_grp_ub, 
+    trt_lb = trt_grp_lb, 
+    trt_ub = trt_grp_ub, 
+    diff_std_est = diff_est_std_resid_large, 
+    diff_std_lb = diff_lb_std_resid_large,
+    diff_std_ub = diff_ub_std_resid_large
+  ) %>%
+  dplyr::mutate(
+    age = "-"
+  ) %>%
+dplyr::mutate(
+  diff_p_bonf = p.adjust(diff_p, method = "bonf")
+) %>%
+dplyr::select(
+  pop, diff_p, diff_p_bonf, everything()
+  )
+
+results_tbl_fig2_conf_none <- results_tbl_fig2_infant_conf_none %>%
+  dplyr::bind_rows(results_tbl_fig2_adult_conf_none)
+
+# With confounders
+# -----------------------
+results_tbl_fig2_infant_conf <- results_tbl_fig2_infant %>%
+  dplyr::filter(conf == "pre_specified") %>%
+  dplyr::select(pop, diff_p, diff_est_std_resid_large:diff_ub_std_resid_large,
+                ctrl_grp_est:trt_grp_ub) %>%
+    dplyr::rename(
+      ctrl_est = ctrl_grp_est, 
+      trt_est = trt_grp_est,
+      ctrl_lb = ctrl_grp_lb, 
+      ctrl_ub = ctrl_grp_ub, 
+      trt_lb = trt_grp_lb, 
+      trt_ub = trt_grp_ub, 
+      diff_std_est = diff_est_std_resid_large, 
+      diff_std_lb = diff_lb_std_resid_large,
+      diff_std_ub = diff_ub_std_resid_large
+    ) %>%
+    dplyr::mutate(
+      age = "infant"
+    ) %>%
+  dplyr::mutate(
+    diff_p_bonf = p.adjust(diff_p, method = "bonf")
+  ) %>%
+  dplyr::select(
+    pop, age, diff_p, diff_p_bonf, everything()
+  )
+results_tbl_fig2_adult_conf <- results_tbl_fig2_adult %>%
+  dplyr::filter(conf == "pre_specified") %>%
+  dplyr::mutate(
+    diff_p = diff_p_wsc, 
+    diff_est = diff_est_wsc,
+    diff_lb = diff_lb_wsc, 
+    diff_ub = diff_ub_wsc
+  ) %>%
+  dplyr::rename(
+    ctrl_est = ctrl_grp_est, 
+    trt_est = trt_grp_est,
+    ctrl_lb = ctrl_grp_lb, 
+    ctrl_ub = ctrl_grp_ub, 
+    trt_lb = trt_grp_lb, 
+    trt_ub = trt_grp_ub
+  ) %>%
+  dplyr::mutate(
+    diff_std_est = diff_est / sd_resid_large,
+    diff_std_lb = diff_lb / sd_resid_large,
+    diff_std_ub = diff_ub / sd_resid_large
+  ) %>%
+  dplyr::mutate(
+    age = "adult"
+  ) %>%
+  dplyr::mutate(
+    diff_p_bonf = p.adjust(diff_p, method = "bonf")
+  ) %>%
+  dplyr::select(pop, age, diff_p, diff_p_bonf, ctrl_est:trt_ub,
+        diff_std_est:diff_std_ub) 
+
+results_tbl_fig2_age_conf <- results_tbl_fig2_age %>%
+  dplyr::filter(conf == "pre_specified") %>%
+  dplyr::select(pop, diff_p, diff_est_std_resid_large:diff_ub_std_resid_large,
+              ctrl_grp_est:trt_grp_ub) %>%
+  dplyr::rename(
+    ctrl_est = ctrl_grp_est, 
+    trt_est = trt_grp_est,
+    ctrl_lb = ctrl_grp_lb, 
+    ctrl_ub = ctrl_grp_ub, 
+    trt_lb = trt_grp_lb, 
+    trt_ub = trt_grp_ub, 
+    diff_std_est = diff_est_std_resid_large, 
+    diff_std_lb = diff_lb_std_resid_large,
+    diff_std_ub = diff_ub_std_resid_large
+  ) %>%
+  dplyr::mutate(
+    age = "-"
+  ) %>%
+dplyr::mutate(
+  diff_p_bonf = p.adjust(diff_p, method = "bonf")
+) %>%
+dplyr::select(
+  pop, diff_p, diff_p_bonf, everything()
+  )
+
+results_tbl_fig2_conf <- results_tbl_fig2_infant_conf %>%
+  dplyr::bind_rows(results_tbl_fig2_adult_conf)
+pop_vec_conf <- unique(results_tbl_fig2_conf$pop)
+pop <- pop_vec_conf[1]
   
-  results_tbl_fig2_conf <- results_tbl_fig2_infant_conf %>%
-    dplyr::bind_rows(results_tbl_fig2_adult_conf)
-  pop_vec_conf <- unique(results_tbl_fig2_conf$pop)
-  #pop_vec_conf <- "cd4"
-  pop <- pop_vec_conf[1]
-  
-  purrr::map(pop_vec_conf, function(pop) {
+plot_list_fig2 <- purrr::map(pop_vec_conf, function(pop) {
     
     # Group plot
     # =====================
-    plot_tbl_results_raw <- results_tbl_fig2_conf %>%
+    plot_tbl_results_raw <- results_tbl_fig2_conf_none %>%
       dplyr::filter(pop == .env$pop)
     plot_tbl_results_tidy <- plot_tbl_results_raw %>%
       dplyr::select(age, ctrl_est:trt_ub) %>%
@@ -1541,10 +1590,11 @@ plot_list_fig2 <- purrr::map(names(conf_vec_infant), function(conf) {
       ) 
     plot_tbl_raw_tidy_adult <- data_mod_freq_adult %>%
       dplyr::filter(pop == .env$pop) %>%
-      dplyr::select(bcg, freq) %>%
+      dplyr::select(pid, bcg, freq) %>%
       dplyr::mutate(
         bcg = stringr::str_to_title(bcg)
       )
+    
     plot_tbl_raw_tidy <- plot_tbl_raw_tidy_infant %>%
       dplyr::bind_rows(plot_tbl_raw_tidy_adult) %>%
       dplyr::rename(trt = bcg) %>%
@@ -1568,95 +1618,290 @@ plot_list_fig2 <- purrr::map(names(conf_vec_infant), function(conf) {
       "log10"
     )
     
-    p_grp <- ggplot(plot_tbl_results_tidy, 
-           aes(x = trt)) +
-      cowplot::theme_cowplot() + 
-      cowplot::background_grid(major = "y") +
-      ggforce::geom_sina(
-        data = plot_tbl_raw_tidy, 
-        aes(y = freq, col = trt), 
-        alpha = 0.5
-      ) +
-      scale_colour_manual(
-        values = trt_to_col
-      ) +
-      geom_errorbar(
-        data = plot_tbl_results_tidy,
-        aes(ymin = lb, ymax = ub), 
-        alpha = 0.8, 
-        width = 0.6
-      ) +
-      geom_point(
-        data = plot_tbl_results_tidy,
-        aes(y = est), 
-        col = "black",
-        alpha = 1, size = 2
-      ) +
-      scale_y_continuous(trans = trans_y) +
-      labs(y = pop_to_lab_freq[[pop]]) +
-      guides(colour = "none") +
-      theme(axis.text.x = element_text(angle = 45, 
-                                       vjust = 0.675), 
-            axis.title.x = element_blank()) 
-    
-    p_grp <- switch(
-      pop, 
-      "mait" = p_grp +
-        scale_y_continuous(
-          breaks = c(0.01, 0.1, 1, 6), 
-          trans = trans_y, 
-          limits = c(NA, 14)
-        ),
-      "nkt" = p_grp +
-        scale_y_continuous(
-          breaks = c(0.03, 0.1, 0.3, 1, 3), 
-          trans = trans_y, 
-          limits = c(NA, 3.6)
-        ),
-      "cd1b" = p_grp +
-        scale_y_continuous(
-          breaks = c(0.03, 0.1, 0.3, 1, 3), 
-          trans = trans_y, 
-          limits = c(NA, 3.6)
-        ),
-      "gem" = p_grp +
-        scale_y_continuous(
-          breaks = c(0.000, 0.001, 0.003, 0.006, 0.01, 0.016), 
-          trans = trans_y, 
-          limits = c(0, 0.02)
-        ), 
-      "gd" = p_grp +
-        scale_y_continuous(
-          breaks = c(0.3, 1, 3, 10),
-          trans = trans_y, 
-          limits = c(NA, 16)
-        ), 
-      "cd4" = p_grp +
-        scale_y_continuous(
-          breaks = c(40, 60, 80, 100),
-          trans = trans_y, 
-          limits = c(NA, 102)
-        ), 
-      "cd4_ifng" = p_grp +
-        scale_y_continuous(
-          breaks = c(0, 0.1, 0.5, 1, 2, 4, 8), 
-          trans = trans_y, 
-          limits = c(0, 9)
-        ), 
-      p_grp
-    )
-    
-    p_tbl_bcg <- plot_tbl_results_raw %>%
+    p_tbl_bcg <- results_tbl_fig2_conf %>%
+      dplyr::filter(pop == .env$pop) %>%
       dplyr::select(pop:diff_p_bonf) %>%
       dplyr::mutate(var_exp = "bcg")
+    
     p_tbl_age <- results_tbl_fig2_age_conf %>%
       dplyr::filter(pop == .env$pop) %>%
       dplyr::select(pop:diff_p_bonf) %>%
       dplyr::mutate(var_exp = "age") %>%
       dplyr::mutate(age = "-")
+    
     p_tbl <- p_tbl_bcg %>%
       dplyr::bind_rows(p_tbl_age) %>%
       dplyr::select(pop, var_exp, age, diff_p, diff_p_bonf)
+    
+    chr_to_num_trt <- c(
+      "No BCG" = 0, 
+      "BCG" = 1, 
+      "Before" = 2, 
+      "After" = 3
+    )
+    num_to_chr_trt <- setNames(
+      names(chr_to_num_trt), 
+      chr_to_num_trt
+    )
+    
+    plot_tbl_results_tidy <- plot_tbl_results_tidy %>%
+      dplyr::mutate(
+        trt_num = chr_to_num_trt[trt]
+      )
+    
+    plot_tbl_raw_tidy <- plot_tbl_raw_tidy %>%
+      dplyr::mutate(
+        trt_num = chr_to_num_trt[trt]
+      )
+    
+    plot_tbl_results_tidy <- plot_tbl_results_tidy %>%
+      dplyr::mutate(
+        trt_num = chr_to_num_trt[trt]
+      )
+    
+    plot_tbl_raw_tidy_adult <- plot_tbl_raw_tidy_adult %>%
+      dplyr::mutate(
+        trt_num = chr_to_num_trt[bcg]
+      )
+    
+
+    
+    plot_tbl_p <- p_tbl %>%
+      dplyr::mutate(
+        xmin = purrr::map_int(paste0(var_exp, "_", age), function(x) {
+          switch(
+            x, 
+            "bcg_infant" = 0L, 
+            "bcg_adult" = 2L, 
+            "age_-" = 1L, 
+            4L
+          )
+        }),
+        xmax = purrr::map_int(paste0(var_exp, "_", age), function(x) {
+          switch(
+            x, 
+            "bcg_infant" = 1L, 
+            "bcg_adult" = 3L, 
+            "age_-" = 3L,
+            4L
+          )
+        }),
+        p_txt = purrr::map_chr(diff_p, function(p) {
+          paste0(
+            "p ",
+            ifelse(
+              p < 0.0001,
+              "< 0.0001",
+              paste0(" = ", signif(p, 2)))
+          )
+        }),
+        q_txt = purrr::map_chr(diff_p_bonf, function(p) {
+          paste0(
+            "(q ",
+            ifelse(
+              p < 0.0001,
+              "< 0.0001",
+              paste0(" = ", signif(p, 2))), 
+            
+            ")"
+          )
+        }), 
+        trt_num = 1
+      ) %>%
+      dplyr::rename(p_adj_txt = q_txt)
+    
+    inv_fn <- switch(
+      trans_y, 
+      "log10" = function(x) 10^x, 
+      "sqrt" = function(x) x^2, 
+      "identity" = function(x) x, 
+      stop("trans_y not recognised")
+    )
+    trans_fn <- switch(
+      trans_y, 
+      "log10" = log10, 
+      "sqrt" = sqrt, 
+      "identity" = function(x) x, 
+      stop("trans_y not recognised")
+    )
+    
+    
+    
+
+    
+    range_axis_orig <- range(plot_tbl_raw_tidy$freq)
+    range_axis_orig_trans <- trans_fn(range_axis_orig)
+    
+    length_axis_orig_trans <- diff(range_axis_orig_trans)
+    y_pos_bcg_trans <- range_axis_orig_trans[2] + 0.05 * length_axis_orig_trans
+    y_pos_age_trans <- range_axis_orig_trans[2] + 0.3 * length_axis_orig_trans
+    var_exp_to_y_pos_trans <- c("bcg" = y_pos_bcg_trans, "age" = y_pos_age_trans)
+    range_upper_bound_trans <- range_axis_orig_trans + 0.43 * length_axis_orig_trans
+    range_upper_bound <- range_upper_bound_trans %>% inv_fn()
+    
+    plot_tbl_p <- plot_tbl_p %>%
+      dplyr::mutate(y = var_exp_to_y_pos_trans[var_exp]) %>%
+      dplyr::mutate(row = seq_len(dplyr::n()))
+    
+    plot_tbl_p_bcg <- plot_tbl_p %>%
+      dplyr::filter(var_exp == "bcg")
+    plot_tbl_p_age <- plot_tbl_p %>%
+      dplyr::filter(var_exp == "age")
+    
+    vjust_p_age <- -1.8
+    vjust_p_bcg <- -1.8
+    vjust_q_age <- -0.4
+    vjust_q_bcg <- -0.4
+    
+    tip_len <- switch(
+          pop, 
+          "gem" = 0.0125, 
+          0.03
+        )
+    
+    p_grp <- ggplot(plot_tbl_results_tidy, 
+                    aes(x = trt_num)) +
+      cowplot::theme_cowplot() + 
+      cowplot::background_grid(major = "y") +
+      ggsignif::geom_signif(
+        data = plot_tbl_p_age, 
+        mapping = aes(xmin = xmin, xmax = xmax,
+                      y_position  = y, annotations = p_txt, 
+                      group = row), 
+        manual = TRUE, vjust = vjust_p_age, 
+        textsize = 2.75, 
+        tip_length = tip_len
+      ) +
+      ggsignif::geom_signif(
+        data = plot_tbl_p_bcg, 
+        mapping = aes(xmin = xmin, xmax = xmax,
+                      y_position  = y, annotations = p_txt, 
+                      group = row), 
+        manual = TRUE, vjust = vjust_p_bcg, 
+        textsize = 2.75, 
+        tip_length = tip_len
+      ) +
+      ggsignif::geom_signif(
+        data = plot_tbl_p_age, 
+        mapping = aes(xmin = xmin, xmax = xmax,
+                      y_position  = y, annotations = p_adj_txt, 
+                      group = row), 
+        manual = TRUE, vjust = vjust_q_age, 
+        textsize = 2.75, 
+        tip_length = tip_len
+      ) +
+      ggsignif::geom_signif(
+        data = plot_tbl_p_bcg, 
+        mapping = aes(xmin = xmin, xmax = xmax,
+                      y_position  = y, annotations = p_adj_txt, 
+                      group = row), 
+        manual = TRUE, vjust = vjust_q_bcg, 
+        textsize = 2.75, 
+        tip_length = tip_len
+      ) +
+      scale_colour_manual(
+        values = trt_to_col
+      ) +
+      scale_colour_manual(
+        values = trt_to_col
+      ) +
+      geom_line(
+        data = tibble::tibble(
+          x = rep(1.5, 2), 
+          y = c(range_axis_orig[1],
+                inv_fn(var_exp_to_y_pos_trans[["bcg"]]))
+        ), 
+        aes(x = x, y = y), 
+        linetype = "dotted",
+        inherit.aes = FALSE
+      )  +
+      geom_line(
+        data = plot_tbl_raw_tidy_adult , 
+        mapping = aes(x = trt_num, y = freq, group = pid),
+        col = "gray50"
+      ) 
+    
+    for(trt_lvl in c("No BCG", "BCG", "Before", "After")) {
+      p_grp <- p_grp + 
+        ggforce::geom_sina(
+          data = plot_tbl_raw_tidy %>%
+            dplyr::mutate(age = ifelse(trt %in% c("No BCG", "BCG"), 
+                          "infant", "adult")) %>%
+            dplyr::filter(trt == trt_lvl), 
+          aes(x = trt_num, y = freq, col = trt, shape = age), 
+          alpha = 0.5
+        )
+    }
+
+    p_grp <- p_grp +
+      geom_errorbar(
+        data = plot_tbl_results_tidy,
+        aes(x = trt_num, ymin = lb, ymax = ub), 
+        alpha = 0.8, 
+        width = 0.6 * 0.62
+      ) +
+      geom_point(
+        data = plot_tbl_results_tidy,
+        aes(x = trt_num, y = est), 
+        col = "black",
+        alpha = 1, size = 2
+      ) +
+      scale_x_continuous(breaks = 0:3,
+                         labels = num_to_chr_trt) +
+      labs(y = pop_to_lab_freq[[pop]]) +
+      guides(colour = "none", shape = "none") +
+      theme(axis.text.x = element_text(angle = 45, 
+                                       vjust = 0.675), 
+            axis.title.x = element_blank()) +
+      scale_shape_manual(
+        values = c(
+          "infant" = "triangle", 
+          "adult" = "circle"
+        )
+      )
+    
+    p_grp <- switch(
+      pop, 
+      "mait" = p_grp + 
+        scale_y_continuous(
+          breaks = c(0.01, 0.1, 1, 10), 
+          trans = trans_y
+        ),
+      "nkt" = p_grp + 
+        scale_y_continuous(
+          breaks = c(0.03, 0.1, 0.3, 1, 3), 
+          trans = trans_y
+        ),
+      "cd1b" = p_grp + 
+        scale_y_continuous(
+          breaks = c(0.03, 0.1, 0.3, 1, 3), 
+          trans = trans_y
+        ),
+      "gem" = p_grp + 
+        scale_y_continuous(
+          breaks = c(0.000, 0.001, 0.003, 0.006, 0.01, 0.016), 
+          trans = trans_y
+        ), 
+      "gd" = p_grp + 
+        scale_y_continuous(
+          breaks = c(0.3, 1, 3, 10),
+          trans = trans_y
+        ) , 
+      "cd4" = p_grp + 
+        scale_y_continuous(
+          breaks = c(40, 60, 80, 100),
+          trans = trans_y
+        ), 
+      "cd4_ifng" = p_grp + 
+        scale_y_continuous(
+          breaks = c(0, 0.1, 0.5, 1, 2, 4, 8), 
+          trans = trans_y
+        ), 
+      p_grp 
+        
+    ) + 
+      expand_limits(y = range_upper_bound[2])
+
     
     # Standardised effect size plot
     
@@ -1688,7 +1933,10 @@ plot_list_fig2 <- purrr::map(names(conf_vec_infant), function(conf) {
       geom_point(
         aes(y = diff_std_est), size = 1.8
       ) +
-      expand_limits(y= c(-2, 2)) +
+      expand_limits(y= c(-3, 3)) +
+      scale_y_continuous(
+        breaks = seq(-3, 3)
+      ) +
       scale_x_discrete(
         labels = short_to_display_age, 
         limits = c("infant", "adult")
@@ -1697,183 +1945,95 @@ plot_list_fig2 <- purrr::map(names(conf_vec_infant), function(conf) {
       theme(axis.title.x = element_blank(), 
             axis.text.x = element_text(angle = 45, vjust = 0.675))
     
-    p_inf <- p_tbl %>%
-      dplyr::filter(age == "infant") %>%
-      dplyr::pull("diff_p")
-    p_inf_txt <- ifelse(p_inf < 0.0001, 
-                        "< 0.0001", 
-                        paste0(" = ", signif(p_inf, 2)))
-    p_inf_txt <- paste0("p ", p_inf_txt)
-    p_inf_b <- p_tbl %>%
-      dplyr::filter(age == "infant") %>%
-      dplyr::pull("diff_p_bonf")
-    p_inf_b_txt <- ifelse(p_inf_b < 0.0001, 
-                    "< 0.0001", 
-                    paste0("= ", signif(p_inf_b, 2)))
-    p_inf_b_txt <- paste0("(q ", p_inf_b_txt, ")")
-    p_inf_txt_disp <- paste0(p_inf_txt, "\n", p_inf_b_txt)
-    
-    p_ad <- p_tbl %>%
-      dplyr::filter(age == "adult") %>%
-      dplyr::pull("diff_p")
-    p_ad_txt <- ifelse(p_ad < 0.0001, 
-                        " < 0.0001", 
-                        paste0(" = ", signif(p_ad, 2)))
-    p_ad_txt <- paste0("p ", p_ad_txt)
-    p_ad_b <- p_tbl %>%
-      dplyr::filter(age == "adult") %>%
-      dplyr::pull("diff_p_bonf")
-    p_ad_b_txt <- ifelse(p_ad_b < 0.0001, 
-                    " < 0.0001", 
-                    paste0(" = ", signif(p_ad_b, 2)))
-    p_ad_b_txt <- paste0("(q ", p_ad_b_txt, ")")
-    p_ad_txt_disp <- paste0(p_ad_txt, "\n", p_ad_b_txt)
-    p_age <- results_tbl_fig2_age_conf %>%
-      dplyr::filter(pop == .env$pop) %>%
-      dplyr::pull("diff_p")
-    p_age_txt <- ifelse(p_age < 0.0001, 
-                        " < 0.0001", 
-                        paste0(" = ", signif(p_age, 2)))
-    p_age_txt <- paste0("p", p_age_txt)
-    
-    q_age <- results_tbl_fig2_age_conf %>%
-      dplyr::filter(pop == .env$pop) %>%
-      dplyr::pull("diff_p_bonf")
-    q_age_txt <- ifelse(q_age < 0.0001, 
-                        " < 0.0001", 
-                        paste0(" = ", signif(q_age, 2)))
-    q_age_txt <- paste0("q", q_age_txt)
-  
-    
-    nudge_freq <- switch(
-      pop, 
-      "gem" = 0, 
-      "mait" = ,
-      "cd1b" = ,
-      "gd" = ,
-      "nkt" = 0.025,
-      "cd4" = 0.0375,
-      "cd4_ifng" = 0.05
-    )
-    p <- cowplot::ggdraw() + 
-      cowplot::draw_plot(
-        p_grp, 
-        x = nudge_freq,
-        width = 2 / 3 - nudge_freq, 
-        height = 0.84
-      ) +
-      cowplot::draw_plot(
-        p_diff, 
-        x = 2 / 3, 
-        width = 1 / 3, 
-        y = 0.05, 
-        height = 0.84 - 0.05
-      ) 
-    
-    q_nudge <- 0.02
-    y <-  0.96 - (0:2) / 1e1 * 1/2 + c(0, 0, 0.0125)
-    line_length <- 0.15
-    tick_height <- 0.01
-    text_size <- 9
-    line_size <- 1
-    
-    pop_to_x_inf <- function(pop) {
-      switch(
-        pop, 
-        "mait", 
-        "nkt", 
-        "cd1b", 
-        "gd" = c(0.2713, 0.375)
-      )
-    }
-    pop_to_x_inf <- c(0.2925, 0.389)
-    pop_to_x_ad <- function(pop) {
-      switch(
-        pop, 
-        "mait", 
-        "nkt", 
-        "cd1b", 
-        "gd" = c(0.476, 0.5825)
-      )
-    }
-    pop_to_x_ad <- c(0.483, 0.585)
-    
-
-    p_out <- p %>%
-      ggutils::add_p_value(
-        p_txt = p_inf_txt,
-        q_txt = p_inf_b_txt,
-        line_x = pop_to_x_inf,
-        p_nudge = 0, 
-        q_nudge = 0, 
-        tick_nudge_in = 0.00375,
-        y = y - 0.13, 
-        tick_height = tick_height, 
-        text_size = text_size, 
-        line_size = line_size
-      ) %>%
-      ggutils::add_p_value(
-        p_txt = p_ad_txt,
-        q_txt = p_ad_b_txt,
-        line_x = pop_to_x_ad,
-        p_nudge = 0, 
-        q_nudge = 0, 
-        tick_nudge_in = 0.00375,
-        y = y - 0.13, 
-        tick_height = tick_height, 
-        text_size = text_size, 
-        line_size = line_size
-      ) %>%
-      ggutils::add_p_value(
-        p_txt = p_age_txt,
-        q_txt = q_age_txt,
-        line_x = c(pop_to_x_inf[2], pop_to_x_ad[2]),
-        p_nudge = 0, 
-        q_nudge = 0, 
-        tick_nudge_in = 0.00375,
-        y = y, 
-        tick_height = tick_height, 
-        text_size = text_size, 
-        line_size = line_size
-      ) 
-    
-    p_out
+   list("p_grp" = p_grp, "p_diff" = p_diff)
     
   }) %>%
     setNames(pop_vec_conf)
-}) %>%
-  setNames(names(conf_vec_infant))
 
+plot_list_align <- purrr::map(seq_along(plot_list_fig2), function(i) {
+  list(plot_list_fig2[[i]]$p_grp,
+       ggplot() + geom_blank() + theme_void())
+})
 
-p_fig2 <- cowplot::plot_grid(
-  plotlist = plot_list_fig2$pre_specified, 
-  ncol = 2
+p_fig2_grp <- cowplot::plot_grid(
+  plotlist = plot_list_align %>%
+    purrr::flatten(), 
+  ncol = 4,
+  rel_widths = c(2, 1, 2, 1), 
+  align = "hv", 
+  axis = "lrtb"
+  #labels = LETTERS[1:7],
+  #hjust = -0.175
 )
-ggutils::add_guide_lines(
-  p = p_fig2, 
-  range = c(0.5 ,0.5)
-) %>%
-  ggutils::add_guide_lines(
-    range = 0.56, n = 3
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_2-grp.pdf"
   )
-dir.create(here::here("_book", "figures"), recursive = TRUE)
 cowplot::ggsave2(
-  here::here(
-    "_book", 
-    "figures",
+  path_fig_rel_pdf, 
+  p_fig2_grp, 
+  height = 29, 
+  width = 19, 
+  units = "cm"
+)
+
+p_fig2_diff <- p_fig2_grp
+x_vec <- rep(c(2/6, 5/6), 4)
+nudge_y_diff <- 0.0125
+y_vec <- rep(c(0.75, 0.5, 0.25, 0), each = 2) + nudge_y_diff
+for(i in seq_along(plot_list_fig2)) {
+  p_fig2_diff <- p_fig2_diff +
+    cowplot::draw_plot(
+      plot_list_fig2[[i]]$p_diff, 
+      width = 1/6, 
+      height = 1/4 - nudge_y_diff, 
+      x = x_vec[i], 
+      y = y_vec[i]
+    )
+}
+
+plot_tbl_legend <- tibble::tibble(
+  x = c(0.5, 0.5), 
+  y = c(0.6, 0.5), 
+  col = c("red", "dodgerblue"), 
+  shape = c("triangle", "circle"), 
+  lbl = c("Infant", "Adult")
+)
+p_legend <- ggplot(plot_tbl_legend) + 
+  theme_void() + 
+  geom_point(aes(x, y, shape = shape), 
+             show.legend = FALSE) +
+  lims(x = 0:1, y = 0:1) +
+  geom_text(aes(x = x + 0.05, y, label = lbl), 
+            hjust = 0)
+p_fig2 <- p_fig2_diff + 
+  cowplot::draw_plot(
+    plot = p_legend, 
+    y = 0, 
+    x = 1/2, 
+    width = 1/2, 
+    height = 1/4
+  )
+  
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
     "fig_2.pdf"
-  ), 
+  )
+path_fig_rel_png <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_2.png"
+  )
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
   p_fig2, 
   height = 29, 
   width = 19, 
   units = "cm"
 )
+od(path_fig_rel_pdf)
 cowplot::ggsave2(
-  here::here(
-    "_book", 
-    "figures", 
-    "fig_2.png"
-  ), 
+  path_fig_rel_png, 
   p_fig2, 
   height = 29, 
   width = 19, 
@@ -1882,5 +2042,5 @@ cowplot::ggsave2(
 ```
 
 ```{r , results = "asis"}
-knitr::include_graphics("_book/figures/fig_2.png")
+knitr::include_graphics(path_fig_rel_png)
 ```
