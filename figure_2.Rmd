@@ -242,7 +242,7 @@ ggplot(
     theme(legend.title = element_blank())
 ```
 
-#### Categorical
+##### Discrete
 
 ###### Response against variable
 
@@ -308,6 +308,18 @@ ggplot(
   scale_colour_brewer(palette = "Set2", 
                       name = "Sex",
                       labels = short_to_display_sex)
+```
+
+###### Variable by BCG status
+
+```{r }
+table(data_tidy_clin_infant$race, 
+      data_tidy_clin_infant$bcg)
+```
+
+```{r }
+table(data_tidy_clin_infant$sex, 
+      data_tidy_clin_infant$bcg)
 ```
 
 ### Adults
@@ -502,6 +514,7 @@ ggplot(
                       labels = short_to_display_sex)
 ```
 
+
 ## Analysis
 
 ### Effect of BCG
@@ -570,7 +583,6 @@ results_tbl_fig2_infant <- purrr::map_df(pop_vec, function(pop) {
           levels = c("no bcg", "bcg")
         )
       )
-    if(i ==2 && pop == "gd") browser()
     fml_txt_base <- "freq ~ 1"
     fml_txt_null <- paste0(fml_txt_base, conf_vec_infant[i])
     fml_txt_trt <- paste0(fml_txt_null, " + bcg")
@@ -581,6 +593,7 @@ results_tbl_fig2_infant <- purrr::map_df(pop_vec, function(pop) {
         race = factor(race, 
                       levels = c("coloured", "black"))
         )
+
     fit_large <- try(quantreg::rq(
       fml_trt, 
       tau = 0.5,
