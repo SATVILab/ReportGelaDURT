@@ -1815,9 +1815,6 @@ plot_list_fig2 <- purrr::map(pop_vec_conf, function(pop) {
       scale_colour_manual(
         values = trt_to_col
       ) +
-      scale_colour_manual(
-        values = trt_to_col
-      ) +
       geom_line(
         data = tibble::tibble(
           x = rep(1.5, 2), 
