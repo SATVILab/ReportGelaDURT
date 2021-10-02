@@ -52,10 +52,15 @@ if (interactive()) {
     "BCG" = "dodgerblue",
     "Before" = "red",
     "After" = "dodgerblue",
-    "cd4_ifng" = "dodgerblue"
+    "cd4_ifng" = "dodgerblue",
+    "IFNg+CD4+" = "#fdae61"
   )
   short_to_display_age <- c("infant" = "Infant", "adult" = "Adult",
                             "Infant" = "Infant", "Adult" = "Adult")
+  short_to_display_trt <- c(
+    "bcg" = "BCG",
+    "ifng" =  bquote(paste(plain(paste("IFN")), gamma, plain(paste("+"))))
+    )
 
   # figure directories
   dir_fig_vec <- NULL

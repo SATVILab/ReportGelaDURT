@@ -6,4 +6,969 @@ Same as Figure 2.
 
 ## Proposed approach
 
+## Data exploration
+
+```{r }
+data_tidy_hladr_infant <- DataTidyGelaDURT::data_tidy_hladr_infant %>%
+  tibble::as_tibble()
+
+data_mod_hladr_infant <- data_tidy_hladr_infant %>%
+  dplyr::filter(grepl("infant", pid)) %>%
+  dplyr::left_join(
+    data_tidy_clin_infant %>%
+      dplyr::select(-bcg), 
+    by = "pid"
+  ) %>%
+  dplyr::rename(hladr = hladr_mfi)
+data_mod_hladr_infant_cyt <- data_mod_hladr_infant %>%
+  dplyr::filter(pop == "cd4_ifng")
+data_mod_hladr_infant <- data_mod_hladr_infant %>%
+  dplyr::filter(pop != "cd4_ifng")
+```
+
+```{r }
+pop_to_lab_hladr <- c(
+  "mait" = "HLA-DR+\nCD3+ MAIT cells (MFI)",
+  "nkt" = "HLA-DR+\nCD3+ NKT cells (MFI)",
+  "cd1b" = "HLA-DR+\nCD3+ CD1b-GMM+ T cells (MFI)",
+  "gem" = "HLA-DR+\nCD3+ GEM T cells (MFI)",
+  "gd" = "HLA-DR+\nCD3+ gdTCR+ (MFI)",
+  "cd4" = "HLA-DR+\nCD4+ T cells (MFI)",
+  "cd4_ifng" = "HLA-DR+\nIFNg+CD4+ T cells (MFI)"
+)
+pop_to_lab_hladr <- c(
+  "mait" = bquote(paste(plain(paste("MAIT cells (MFI)")))), 
+  "nkt" = bquote(paste(plain(paste("NKT cells (MFI)")))),
+  "cd1b" = bquote(paste(plain(paste("CD1b-GMM+ T cells (MFI)")))),
+  "gem" = bquote(paste(plain(paste("GEM T cells (MFI)")))),
+  "gd" = bquote(paste(gamma, delta, plain(paste("TCR+ cells (MFI)")))), 
+  "cd4" = bquote(paste(plain(paste("CD4+ T cells (MFI)")))), 
+  "cd4_ifng" = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD4+ T cells (MFI)"))))
+)
+
+pop_to_lab_hladr_diff <- c(
+  "mait" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "nkt" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "cd1b" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gem" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gd" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta))
+)
+```
+
+### Response against BCG status
+
+The `asinh` transformation seems appropriate.
+
+```{r }
+trans_asinh <- scales::trans_new(
+  name = "asinh", 
+  transform = asinh, 
+  inverse = sinh
+)
+trans_sqrt <- scales::trans_new(
+  name = "sqrt_custom", 
+  transform = sqrt, 
+  inverse = function(x) x^2
+)
+ggplot(data_mod_hladr_infant %>%
+         dplyr::bind_rows(
+           data_mod_hladr_infant %>%
+             dplyr::group_by(bcg) %>%
+             dplyr::slice(1) %>%
+             dplyr::mutate(pop = "cd8")
+         ) %>%
+         dplyr::mutate(
+           bcg = factor(
+             bcg, 
+             levels = c("no bcg", "bcg")
+           ), 
+           pop = factor(pop, 
+                        levels = c(
+                          "cd4", "cd8", "mait", 
+                          "nkt", "cd1b", 
+                          "gd"
+                        ))
+         ), 
+       aes(x = bcg, y = hladr, fill = bcg)) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_boxplot(outlier.size = 1, 
+               outlier.colour = "gray55") + 
+  scale_fill_brewer(palette = "Set1", 
+                    labels = short_to_display_bcg, 
+                    name = "BCG") + 
+  theme(axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank(), 
+        legend.title = element_blank(), 
+        legend.position = "bottom") + 
+  labs(x = "BCG status", y = "hladr") + 
+  facet_wrap(~pop, ncol = 2, scales = "free_y", 
+             labeller = labeller(
+               pop = short_to_long_pop, 
+               conf_cont = short_to_long_var_cont)) +
+  scale_y_continuous(trans = trans_asinh)
+```
+
+### Confounders
+
+#### Continuous
+
+##### Response against variable
+
+Nothing striking.
+
+```{r }
+data_plot_hladr_infant_cont <- data_mod_hladr_infant %>%
+  dplyr::select(-(age:sex)) %>%
+  tidyr::pivot_longer(
+    gest_age:visit_age, 
+    names_to = "conf_cont", 
+    values_to = "value"
+  )
+p_cont <- ggplot(
+  data_plot_hladr_infant_cont, 
+  aes(x = value, y = hladr)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  facet_grid(pop ~ conf_cont, 
+             scales = "free", 
+             labeller = labeller(
+               pop = short_to_long_pop, 
+               conf_cont = short_to_long_var_cont)) +
+  theme(strip.background = element_blank()) +
+  scale_colour_brewer(palette = "Dark2", 
+                      labels = short_to_display_bcg) +
+  labs(x = "Value", y = "hladr") +
+  theme(legend.title = element_blank()) +
+  geom_hline(yintercept = 0)
+
+path_fig_rel_pdf <- file.path(
+  dir_fig_vec_rel["manu_n_exp"], 
+  "fig_3-p-infant-resp_vs_conf_cont.pdf"
+)
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_cont, 
+  height = 20, 
+  width = 20, 
+  units = "cm"
+)
+path_fig_rel_png <- file.path(
+  dir_fig_vec_rel["manu_n_exp"], 
+  "fig_3-p-infant-resp_vs_conf_cont.png"
+)
+cowplot::ggsave2(
+  path_fig_rel_png, 
+  p_cont, 
+  height = 20, 
+  width = 20, 
+  units = "cm"
+)
+```
+
+```{r , results = "asis"}
+knitr::include_graphics(path_fig_rel)
+```
+
+##### Variable by BCG status
+
+BCG papers appear slightly longer with slightly higher gestational ages, and are possibly heavier.
+
+```{r }
+ggplot(
+  data_plot_hladr_infant_cont %>%
+    dplyr::group_by(conf_cont) %>%
+    dplyr::mutate(value = (value - mean(value, na.rm = TRUE)) / sd(value, na.rm = TRUE)) %>%
+    dplyr::ungroup(), 
+  aes(x = value, col = bcg)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+   geom_histogram(position = "dodge") +
+  geom_density(bw = 0.4) +
+  facet_wrap( ~ conf_cont, 
+             ncol = 3, 
+             scales = "free",
+             labeller = labeller(
+               pop = short_to_long_pop, 
+               conf_cont = short_to_long_var_cont)) +
+    scale_colour_brewer(palette = "Dark2", 
+                      labels = short_to_display_bcg) +
+    labs(x = "Standardised value", y = "Density") +
+  theme(strip.background = element_blank()) +
+    theme(legend.title = element_blank())
+```
+
+### Categorical
+
+##### Response against variable
+
+###### Race
+
+Moderate race effect, perhaps, for CD4 T cells. 
+
+```{r }
+ggplot(
+  data_mod_hladr_infant, 
+  aes(x = bcg, y = hladr, fill = race, col = race)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_jitter(position = "dodge") +
+  geom_boxplot(
+    position = "dodge", 
+    col = "black", 
+    outlier.size = -1
+  ) +
+  facet_wrap(~pop, 
+             ncol = 4, 
+             scales = "free_y", 
+             labeller = labeller(
+               pop = short_to_long_pop, 
+               conf_cont = short_to_long_var_cont))  +
+  scale_fill_brewer(palette = "Set1", 
+                    name = "Race") +
+  scale_colour_brewer(palette = "Set1", 
+                      name = "Race") +
+  scale_x_discrete(labels = short_to_display_bcg) +
+  labs(x = "BCG status", y = "hladr")
+```
+
+###### Gender
+
+Gender effects less strong. Treatment effect in opposite direction between females and females for NKT cells (but likely insignificant for both groups).
+
+```{r }
+ggplot(
+  data_mod_hladr_infant %>%
+    dplyr::mutate(sex = ifelse(is.na(sex), "unknown", sex)), 
+  aes(x = bcg, y = hladr, fill = sex, col = sex)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_jitter(position = "dodge") +
+  geom_boxplot(
+    position = "dodge", 
+    col = "black", 
+    outlier.size = -1
+  ) +
+  facet_wrap(~pop, 
+             ncol = 4, 
+             scales = "free_y", 
+             labeller = labeller(
+               pop = short_to_long_pop,
+               sex = short_to_display_sex
+             ))  +
+  scale_fill_brewer(palette = "Set2", 
+                    name = "Sex",
+                    labels = short_to_display_sex) +
+  scale_colour_brewer(palette = "Set2", 
+                      name = "Sex",
+                      labels = short_to_display_sex)
+```
+
+## Analysis
+
+### Effect of BCG
+
+#### Calculation
+
+```{r , eval = TRUE, include = FALSE}
+pop_vec <- unique(data_mod_hladr_infant$pop) %>%
+  setdiff("cd4_ifng")
+pop <- "mait"
+conf_vec_infant <- c(
+  "none" = "", 
+  "pre_specified" = "+ sex + race"#, 
+  # "data_specified" = " + ethnicity + length + gest_age + weight"
+  )
+results_tbl_fig3_std <- purrr::map_df(pop_vec, function(pop) {
+  print(pop)
+  data_mod <- data_mod_hladr_infant %>%
+    dplyr::filter(pop == .env$pop)
+  
+  purrr::map_df(seq_along(conf_vec_infant), function(i) {
+    print(names(conf_vec_infant)[i])
+    # effect size
+    
+    trans_resp <- switch(
+      pop, 
+      "nkt" = trans_sqrt$transform,
+      trans_asinh$transform
+    )
+    
+    data_mod <- data_mod %>%
+      dplyr::mutate(
+        hladr = trans_resp(hladr)
+      )
+    
+    trans_inv <- switch(
+      pop,
+      "nkt" = trans_sqrt$inverse,
+      sinh
+    )
+
+    data_mod <- data_mod %>%
+      dplyr::mutate(
+        bcg = factor(
+          bcg, 
+          levels = c("no bcg", "bcg")
+        )
+      )
+    fml_txt_base <- "hladr ~ 1"
+    fml_txt_null <- paste0(fml_txt_base, conf_vec_infant[i])
+    fml_txt_trt <- paste0(fml_txt_null, " + bcg")
+    fml_null <- eval(parse(text = fml_txt_null))
+    fml_trt <- eval(parse(text = fml_txt_trt))
+    data_mod <- data_mod %>%
+      dplyr::mutate(
+        race = factor(race, 
+                      levels = c("coloured", "black"))
+        )
+    fit_large <- try(quantreg::rq(
+      fml_trt, 
+      tau = 0.5,
+      data = data_mod
+    ), silent = TRUE)
+    fit_small <- try(quantreg::rq(
+      fml_null, 
+      tau = 0.5,
+      data = data_mod
+    ), silent = TRUE)
+    
+    mod_summ <- summary(fit_large, se = "rank")
+    
+    sd_resid <- sd(resid(mod_summ))
+    
+    coef_tbl <- coefficients(mod_summ) 
+    ind_bcg <- which(rownames(coef_tbl) == "bcgbcg")
+    coef_vec <- coef_tbl[ind_bcg, c("lower bd", "upper bd")] %>%
+      as.vector()
+    coef_est <- coef_tbl[ind_bcg, "coefficients"]
+    
+    out_tbl <- tibble::tibble(
+      pop = pop,
+      age = "infant",
+      conf = names(conf_vec_infant)[i]
+    )
+    
+    if(class(fit_large)[1] != "try-error") {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est = coef_est, 
+          diff_lb = coef_vec[1], 
+          diff_ub = coef_vec[2], 
+          sd_resid_large = sd(resid(mod_summ))
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est = NA, 
+          diff_lb = NA, 
+          diff_ub = NA, 
+          sd_resid_large = NA
+        )
+    }
+    
+    if(class(fit_small)[1] != "try-error") {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          sd_resid_small = sd(resid(summary(fit_small)))
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          sd_resid_small = NA
+        )
+    }
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        sd_raw_overall = sd(data_mod$hladr), 
+        sd_raw_grp_mean = purrr::map_dbl(unique(data_mod$bcg), function(x) {
+          data_mod_bcg <- data_mod %>%
+            dplyr::filter(bcg == x)
+          sd(data_mod_bcg$hladr)
+        }) %>% 
+          mean()
+      )
+    
+    if(class(fit_large)[1] != "try-error") {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est_std_resid_large = coef_est / sd_resid_large, 
+          diff_lb_std_resid_large = diff_lb / sd_resid_large, 
+          diff_ub_std_resid_large = diff_ub / sd_resid_large
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est_std_resid_large = NA, 
+          diff_lb_std_resid_large = NA, 
+          diff_ub_std_resid_large = NA
+        )
+    }
+    if(class(fit_small)[1] != "try-error") {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est_std_resid_small = coef_est / sd_resid_small, 
+          diff_lb_std_resid_small = diff_lb / sd_resid_small, 
+          diff_ub_std_resid_small = diff_ub / sd_resid_small
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est_std_resid_small = NA, 
+          diff_lb_std_resid_small = NA, 
+          diff_ub_std_resid_small = NA
+        )
+    }
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        diff_est_std_raw_overall = coef_est / sd_raw_overall, 
+        diff_lb_std_raw_overall = diff_lb / sd_raw_overall, 
+        diff_ub_std_raw_overall = diff_ub / sd_raw_overall
+      ) %>%
+      dplyr::mutate(
+        diff_est_std_raw_grp_mean = coef_est / sd_raw_grp_mean, 
+        diff_lb_std_raw_grp_mean = diff_lb / sd_raw_grp_mean, 
+        diff_ub_std_raw_grp_mean = diff_ub / sd_raw_grp_mean
+      )
+    
+
+    if(class(fit_large)[1] != "try-error" && 
+       class(fit_small)[1] != "try-error") {
+      anova_fit <- anova(fit_large, fit_small)
+      p = anova_fit$table$pvalue
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_p = p
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_p = NA
+        )
+      }
+
+    # Group-wise confidence intervals
+    # ================================
+    
+    # no bcg
+    
+    coef_tbl <- coefficients(mod_summ) 
+    ind_int <- which(rownames(coef_tbl) == "(Intercept)")
+    coef_vec_est <- coef_tbl[ind_int, "coefficients"]
+    coef_vec_int_ctrl <- coef_tbl[ind_int, c("lower bd", "upper bd")] %>%
+      as.vector()
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        ctrl_grp_est = coef_vec_est,
+        ctrl_grp_lb = coef_vec_int_ctrl[1],
+        ctrl_grp_ub = coef_vec_int_ctrl[2]
+      )
+    
+    data_mod_trt <- data_mod %>%
+      dplyr::mutate(
+        bcg = factor(
+          bcg, 
+          levels = c("bcg", "no bcg")
+        )
+      )
+
+    fit_large_trt <- try(quantreg::rq(
+      fml_trt, 
+      tau = 0.5,
+      data = data_mod_trt
+    ), silent = TRUE)
+
+    mod_summ_trt <- summary(fit_large_trt)
+
+    coef_tbl <- coefficients(mod_summ_trt) 
+    ind_int <- which(rownames(coef_tbl) == "(Intercept)")
+    coef_vec_est_trt <- coef_tbl[ind_int, "coefficients"]
+    coef_vec_int_trt <- coef_tbl[ind_int, c("lower bd", "upper bd")] %>%
+      as.vector()
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        trt_grp_est = coef_vec_est_trt,
+        trt_grp_lb = coef_vec_int_trt[1],
+        trt_grp_ub = coef_vec_int_trt[2]
+      )
+    
+    # transform CI's back to original scale
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        ctrl_grp_est = trans_inv(ctrl_grp_est),
+        ctrl_grp_lb = trans_inv(ctrl_grp_lb),
+        ctrl_grp_ub = trans_inv(ctrl_grp_ub),
+        trt_grp_est = trans_inv(trt_grp_est),
+        trt_grp_lb = trans_inv(trt_grp_lb),
+        trt_grp_ub = trans_inv(trt_grp_ub)
+      )
+    
+    out_tbl
+  })
+})
+```
+
+```{r }
+results_tbl_fig3_cyt <- purrr::map_df(c("cd4"), function(pop) {
+  print(pop)
+  data_mod <- data_mod_hladr_infant %>%
+    dplyr::filter(pop == .env$pop) %>%
+    dplyr::filter(bcg == "bcg")
+  
+  data_mod <- data_mod %>%
+    dplyr::bind_rows(data_mod_hladr_infant_cyt)
+  purrr::map_df(seq_along(conf_vec_infant), function(i) {
+    print(names(conf_vec_infant)[i])
+    # effect size
+    
+    trans_resp <- switch(
+      pop, 
+      "nkt" = trans_sqrt$transform,
+      trans_asinh$transform
+    )
+    
+    data_mod <- data_mod %>%
+      dplyr::mutate(
+        hladr = trans_resp(hladr)
+      )
+    
+    trans_inv <- switch(
+      pop,
+      "nkt" = trans_sqrt$inverse,
+      sinh
+    )
+
+    data_mod <- data_mod %>%
+      dplyr::mutate(
+        pop = factor(
+          pop, 
+          levels = c("cd4", "cd4_ifng")
+        ),
+        race = factor(race, 
+                      levels = c("coloured", "black")), 
+        sex = factor(sex,
+                     levels = c("female", "male"))
+      )
+    fml_txt_base <- "hladr ~ 1"
+    fml_txt_null <- paste0(fml_txt_base, conf_vec_infant[i])
+    fml_txt_trt <- paste0(fml_txt_null, " + pop")
+    fml_null <- eval(parse(text = fml_txt_null))
+    fml_trt <- eval(parse(text = fml_txt_trt))
+
+    fit_large <- try(quantreg::rq(
+      fml_trt, 
+      tau = 0.5,
+      data = data_mod
+    ), silent = TRUE)
+    fit_small <- try(quantreg::rq(
+      fml_null, 
+      tau = 0.5,
+      data = data_mod
+    ), silent = TRUE)
+    
+    mod_summ <- summary(fit_large, se = "rank")
+    
+    sd_resid <- sd(resid(mod_summ))
+    
+    coef_tbl <- coefficients(mod_summ) 
+    ind_cd4_ifng <- which(rownames(coef_tbl) == "popcd4_ifng")
+    coef_vec <- coef_tbl[ind_cd4_ifng, c("lower bd", "upper bd")] %>%
+      as.vector()
+    coef_est <- coef_tbl[ind_cd4_ifng, "coefficients"]
+    
+    out_tbl <- tibble::tibble(
+      pop = pop,
+      age = "infant",
+      conf = names(conf_vec_infant)[i]
+    )
+    
+    if(class(fit_large)[1] != "try-error") {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est = coef_est, 
+          diff_lb = coef_vec[1], 
+          diff_ub = coef_vec[2], 
+          sd_resid_large = sd(resid(mod_summ))
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est = NA, 
+          diff_lb = NA, 
+          diff_ub = NA, 
+          sd_resid_large = NA
+        )
+    }
+    
+    if(class(fit_small)[1] != "try-error") {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          sd_resid_small = sd(resid(summary(fit_small)))
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          sd_resid_small = NA
+        )
+    }
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        sd_raw_overall = sd(data_mod$hladr), 
+        sd_raw_grp_mean = purrr::map_dbl(unique(data_mod$bcg), function(x) {
+          data_mod_bcg <- data_mod %>%
+            dplyr::filter(bcg == x)
+          sd(data_mod_bcg$hladr)
+        }) %>% 
+          mean()
+      )
+    
+    if(class(fit_large)[1] != "try-error") {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est_std_resid_large = coef_est / sd_resid_large, 
+          diff_lb_std_resid_large = diff_lb / sd_resid_large, 
+          diff_ub_std_resid_large = diff_ub / sd_resid_large
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est_std_resid_large = NA, 
+          diff_lb_std_resid_large = NA, 
+          diff_ub_std_resid_large = NA
+        )
+    }
+    if(class(fit_small)[1] != "try-error") {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est_std_resid_small = coef_est / sd_resid_small, 
+          diff_lb_std_resid_small = diff_lb / sd_resid_small, 
+          diff_ub_std_resid_small = diff_ub / sd_resid_small
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_est_std_resid_small = NA, 
+          diff_lb_std_resid_small = NA, 
+          diff_ub_std_resid_small = NA
+        )
+    }
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        diff_est_std_raw_overall = coef_est / sd_raw_overall, 
+        diff_lb_std_raw_overall = diff_lb / sd_raw_overall, 
+        diff_ub_std_raw_overall = diff_ub / sd_raw_overall
+      ) %>%
+      dplyr::mutate(
+        diff_est_std_raw_grp_mean = coef_est / sd_raw_grp_mean, 
+        diff_lb_std_raw_grp_mean = diff_lb / sd_raw_grp_mean, 
+        diff_ub_std_raw_grp_mean = diff_ub / sd_raw_grp_mean
+      )
+    
+
+    if(class(fit_large)[1] != "try-error" && 
+       class(fit_small)[1] != "try-error") {
+      anova_fit <- anova(fit_large, fit_small)
+      p = anova_fit$table$pvalue
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_p = p
+        )
+    } else {
+      out_tbl <- out_tbl %>%
+        dplyr::mutate(
+          diff_p = NA
+        )
+    }
+    
+    data_mod_wsc <- data_mod %>%
+      tidyr::pivot_wider(
+        names_from = "pop", 
+        values_from = "hladr"
+      )  %>%
+      dplyr::filter(!(is.na(cd4) | is.na(cd4_ifng)))
+    
+    wsc_test <- wilcox.test(
+      x = data_mod_wsc$cd4_ifng, 
+      y = data_mod_wsc$cd4,
+      paired = TRUE, 
+      conf.int = TRUE
+    )
+    diff_p_wsc <- wsc_test$p.value[[1]]
+    diff_est_wsc <- wsc_test$estimate[[1]]
+    diff_lb_wsc <- wsc_test$conf.int[[1]]
+    diff_ub_wsc <- wsc_test$conf.int[[2]]
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        diff_est_wsc = diff_est_wsc, 
+        diff_lb_wsc = diff_lb_wsc, 
+        diff_ub_wsc = diff_ub_wsc, 
+        diff_p_wsc = diff_p_wsc
+      )
+
+    # Group-wise confidence intervals
+    # ================================
+    
+    # no bcg
+    
+    coef_tbl <- coefficients(mod_summ) 
+    ind_int <- which(rownames(coef_tbl) == "(Intercept)")
+    coef_vec_est <- coef_tbl[ind_int, "coefficients"]
+    coef_vec_int_ctrl <- coef_tbl[ind_int, c("lower bd", "upper bd")] %>%
+      as.vector()
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        ctrl_grp_est = coef_vec_est,
+        ctrl_grp_lb = coef_vec_int_ctrl[1],
+        ctrl_grp_ub = coef_vec_int_ctrl[2]
+      )
+    
+    data_mod_trt <- data_mod %>%
+      dplyr::mutate(
+        pop = factor(
+          pop, 
+          levels = c("cd4_ifng", "cd4")
+        )
+      )
+
+    fit_large_trt <- try(quantreg::rq(
+      fml_trt, 
+      tau = 0.5,
+      data = data_mod_trt
+    ), silent = TRUE)
+
+    mod_summ_trt <- summary(fit_large_trt)
+
+    coef_tbl <- coefficients(mod_summ_trt) 
+    ind_int <- which(rownames(coef_tbl) == "(Intercept)")
+    coef_vec_est_trt <- coef_tbl[ind_int, "coefficients"]
+    coef_vec_int_trt <- coef_tbl[ind_int, c("lower bd", "upper bd")] %>%
+      as.vector()
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        trt_grp_est = coef_vec_est_trt,
+        trt_grp_lb = coef_vec_int_trt[1],
+        trt_grp_ub = coef_vec_int_trt[2]
+      )
+    
+    # transform CI's back to original scale
+    
+    out_tbl <- out_tbl %>%
+      dplyr::mutate(
+        ctrl_grp_est = trans_inv(ctrl_grp_est),
+        ctrl_grp_lb = trans_inv(ctrl_grp_lb),
+        ctrl_grp_ub = trans_inv(ctrl_grp_ub),
+        trt_grp_est = trans_inv(trt_grp_est),
+        trt_grp_lb = trans_inv(trt_grp_lb),
+        trt_grp_ub = trans_inv(trt_grp_ub)
+      )
+    
+    out_tbl
+  })
+})
+```
+
+#### Effect of BCG in infants
+
+```{r , results = "asis"}
+results_tbl_fig3_std %>%
+  dplyr::filter(conf == "pre_specified") %>%
+  dplyr::select(pop, age, diff_est, diff_p) %>%
+  dplyr::mutate(pop = short_to_long_pop[pop]) %>%
+  dplyr::arrange(diff_p) %>%
+  dplyr::mutate(diff_p_bonf = p.adjust(diff_p, method = "bonf", 
+                                       n = length(pop_vec) + 1)) %>%
+  dplyr::rename(Pop = pop, 
+                Age = age, 
+                `BCG effect: est.` = `diff_est`, 
+                `BCG effect: p-value` = diff_p, 
+                `BCG effect: q-value (Bonf)` = diff_p_bonf) %>%
+  pander::pandoc.table()
+```
+
+#### Effect of IFN$\gamma$ positivity in CD4 T cells in infants
+
+```{r , results = "asis"}
+results_tbl_fig3_cyt %>%
+  dplyr::filter(conf == "pre_specified") %>%
+  dplyr::select(pop, age, diff_est, diff_p) %>%
+  dplyr::mutate(pop = short_to_long_pop[pop]) %>%
+  dplyr::arrange(diff_p) %>%
+  dplyr::mutate(diff_p_bonf = p.adjust(diff_p, method = "bonf", n = length(pop_vec) + 1)) %>%
+  dplyr::rename(Pop = pop, 
+                Age = age, 
+                `IFNg+ effect: est.` = `diff_est`, 
+                `IFNg+ effect: p-value` = diff_p, 
+                `IFNg+ effect: q-value (Bonf)` = diff_p_bonf) %>%
+  pander::pandoc.table()
+```
+
+#### Plotting
+
+```{r }
+pop_to_lab_hladr_infant <- c(
+  "mait" = bquote(paste(plain(paste("CD3+ MAIT cells (MFI)")))), 
+  "nkt" = bquote(paste(plain(paste("CD3+ NKT cells (MFI)")))),
+  "cd1b" = bquote(paste(plain(paste("CD3+ GMM T cells (MFI)")))),
+  "gd" = bquote(paste(plain(paste("CD3+ ")), gamma, delta, plain(paste("TCR+ cells (MFI)")))),                     
+  "cd4" = bquote(paste(plain(paste("CD4+ T cells (MFI)"))))
+)
+
+pop_to_lab_hladr_infant_diff <- c(
+  "mait" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG")))), 
+  "nkt" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG")))),
+  "cd1b" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG")))),
+  "gem" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG")))),
+  "gd" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG")))), 
+  "cd4" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG")))), 
+  "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta, plain(paste(" BCG"))))
+)
+```
+
+```{r , include = FALSE}
+plot_list_fig3 <- get_fig_3_sub_plots()
+
+plot_list_align <- purrr::map(seq_along(plot_list_fig3), function(i) {
+  list(ggplot() + geom_blank() + theme_void(), 
+       plot_list_fig3[[i]]$p_grp,
+       ggplot() + geom_blank() + theme_void())
+})
+
+p_fig3_grp <- cowplot::plot_grid(
+  plotlist = plot_list_align %>%
+    purrr::flatten(), 
+  ncol = 6,
+  rel_widths = c(0.1, 2, 1, 0.1, 2, 1), 
+  align = "hv", 
+  axis = "lrtb"
+  #labels = LETTERS[1:7],
+  #hjust = -0.175
+)
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_3-grp.pdf"
+  )
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_fig3_grp, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+
+p_fig3 <- p_fig3_grp
+x_vec <- rep(c(2/6, 5/6), 3)
+nudge_y_diff <- 0.0115# 0.032
+y_vec <- rep(1 - 1/3 * 1:3, each = 2) + nudge_y_diff
+y_vec[2:6] <- y_vec[2:6] + 0.0105
+for(i in seq_along(plot_list_fig3)) {
+  p_fig3 <- p_fig3 +
+    cowplot::draw_plot(
+      plot_list_fig3[[i]]$p_diff, 
+      width = 1/6, 
+      height = 1/3 - nudge_y_diff - 0.0105, 
+      x = x_vec[i], 
+      y = y_vec[i]
+    ) 
+}
+
+x_vec_hladr <- rep(c(0.02, 0.52), 3)
+y_vec_hladr <- rep(0.5, 6)
+nudge_down <- 0.0125
+p_fig3 <- p_fig3 + 
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.03, 
+      y = 0.885 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.5175, 
+      y = 0.885 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.03, 
+      y = 0.5525 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.505, 
+      y = 0.5525 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+    text = "HLADR+", 
+    x = 0.02, 
+    y = 0.2167 - nudge_down, 
+    angle = 90, 
+    hjust = 0.5, 
+    vjust = 0.5
+  ) 
+
+p_fig3 <- p_fig3 + 
+ cowplot::draw_label(
+    label = bquote(paste(plain(paste("IFN")), gamma, "+")),
+    angle = 45, 
+    x = 0.2935, 
+    y = 0.72,
+    size = 12
+  )
+
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_3.pdf"
+  )
+path_fig_rel_png <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_3.png"
+  )
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_fig3, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+od(path_fig_rel_pdf)
+cowplot::ggsave2(
+  path_fig_rel_png, 
+  p_fig3, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+```
+
+```{r , results = "asis"}
+knitr::include_graphics(path_fig_rel_png)
+```
 
