@@ -1,13 +1,568 @@
 # Figure 4
 
-## Relevant criticisms
+Same as Figure 2. 
 
-- Unsure
+## Relevant criticisms
 
 ## Proposed approach
 
-- If we want to re-analyse this, could fit a mixed-effects model as follows:
-  - hladr_mfi ~ days_since_vaccination
-    - Can check whether any days are significant
-- Power calculation
-  - Probably just simulate
+## Data exploration
+
+```{r }
+data_tidy_hladr_adult <- DataTidyGelaDURT::data_tidy_hladr_adult %>%
+  tibble::as_tibble()
+
+data_mod_hladr_adult <- data_tidy_hladr_adult %>%
+  dplyr::left_join(
+    data_tidy_clin_adult, 
+    by = "pid"
+  ) %>%
+  dplyr::rename(hladr = hladr_mfi) %>%
+  dplyr::mutate(
+  days = factor(
+    days, 
+    levels = as.character(c(0, 21, 35, 365))
+  ), 
+  pop = factor(pop, 
+               levels = c(
+                 "cd4",
+                 "mait", 
+                 "nkt", "cd1b", 
+                 "gd"
+               ))
+  ) %>%
+  dplyr::mutate(
+    day_type = ifelse(days == "0", "pre_bcg", "post_bcg")
+  ) %>%
+  dplyr::mutate(
+    hladr = pmax(hladr, 0)
+  ) %>%
+  dplyr::mutate(
+    race = factor(race, 
+              levels = c("non_black", "black")), 
+    sex = factor(
+      sex, 
+      levels = c("female", "male")
+    )
+  )
+```
+
+```{r }
+pop_to_lab_hladr <- c(
+  "mait" = bquote(paste(plain(paste("MAIT cells (MFI)")))), 
+  "nkt" = bquote(paste(plain(paste("NKT cells (MFI)")))),
+  "cd1b" = bquote(paste(plain(paste("CD1b-GMM+ T cells (MFI)")))),
+  "gem" = bquote(paste(plain(paste("GEM T cells (MFI)")))),
+  "gd" = bquote(paste(gamma, delta, plain(paste("TCR+ cells (MFI)")))), 
+  "cd4" = bquote(paste(plain(paste("CD4+ T cells (MFI)")))), 
+  "cd4_ifng" = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD4+ T cells (MFI)"))))
+)
+
+pop_to_lab_hladr_diff <- c(
+  "mait" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "nkt" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "cd1b" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gem" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gd" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta))
+)
+```
+
+### Response against BCG status
+
+Square root or asinh transformation may help for tcrgd and cd1, but seems less help for cd4, nkt and maits. May consider pulling that enormous tcrgd value in. Should probably use a gamma dbn for  cd1b (asinh scale) and tcrgd (square root scale - else very large negative obs). NKTs, CD4s and MAITs could probably simply use a normal dbn. 
+
+#### Identity (no) transformation
+
+```{r }
+ggplot(data_mod_hladr_adult, 
+       aes(x = days, y = hladr, fill = day_type)) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_boxplot(outlier.size = 1, 
+               outlier.colour = "gray55") + 
+  guides(fill = "none") + 
+  theme(legend.title = element_blank(), 
+        legend.position = "bottom") + 
+  labs(x = "Days since revaccination", y = "hladr") + 
+  facet_wrap(~pop, ncol = 2, scales = "free_y", 
+             labeller = labeller(
+               pop = short_to_long_pop, 
+               conf_cont = short_to_long_var_cont)) +
+  scale_y_continuous(trans = "identity")
+```
+
+#### Square root transformation
+
+```{r }
+ggplot(data_mod_hladr_adult, 
+       aes(x = days, y = hladr, fill = day_type)) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_boxplot(outlier.size = 1, 
+               outlier.colour = "gray55") + 
+  guides(fill = "none") + 
+  theme(legend.title = element_blank(), 
+        legend.position = "bottom") + 
+  labs(x = "Days since revaccination", y = "hladr") + 
+  facet_wrap(~pop, ncol = 2, scales = "free_y", 
+             labeller = labeller(
+               pop = short_to_long_pop, 
+               conf_cont = short_to_long_var_cont)) +
+  scale_y_continuous(trans = "sqrt")
+```
+
+#### Asinh transformation
+
+```{r }
+trans_asinh <- scales::trans_new(
+  name = "asinh", 
+  transform = asinh, 
+  inverse = sinh
+)
+trans_sqrt <- scales::trans_new(
+  name = "sqrt_custom", 
+  transform = sqrt, 
+  inverse = function(x) x^2
+)
+ggplot(data_mod_hladr_adult, 
+       aes(x = days, y = hladr, fill = day_type)) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  geom_boxplot(outlier.size = 1, 
+               outlier.colour = "gray55") + 
+  guides(fill = "none") + 
+  theme(legend.title = element_blank(), 
+        legend.position = "bottom") + 
+  labs(x = "Days since revaccination", y = "hladr") + 
+  facet_wrap(~pop, ncol = 2, scales = "free_y", 
+             labeller = labeller(
+               pop = short_to_long_pop, 
+               conf_cont = short_to_long_var_cont)) +
+  scale_y_continuous(trans = trans_asinh)
+```
+
+```{r }
+get_trans_obj <- function(x) {
+  switch(
+    x, 
+    "cd4" = ,
+    "mait" = ,
+    "nkt" = scales::identity_trans(),
+    "cd1b" = trans_asinh, 
+    "gd" = scales::sqrt_trans()
+  )
+}
+get_trans <- function(x) {
+  get_trans_obj(x)$transform
+}
+
+get_trans_inv <- function(x) {
+  get_trans_obj(x)$inverse
+}
+```
+
+## Analysis
+
+### Effect of BCG
+
+#### Calculation
+
+```{r , eval = TRUE, include = FALSE}
+pop_vec <- unique(data_mod_hladr_adult$pop) %>%
+  setdiff("cd4_ifng")
+pop <- "cd1b"
+conf_vec_adult <- c(
+  "none" = "", 
+  "pre_specified" = "+ sex + race" 
+  )
+results_tbl_fig4_std <- purrr::map_df(pop_vec, function(pop) {
+  print(pop)
+  data_mod <- data_mod_hladr_adult %>%
+    dplyr::filter(pop == .env$pop)
+  
+  trans_resp <- get_trans(pop)
+  trans_inv <- get_trans_inv(pop)
+  
+  data_mod <- data_mod %>%
+    dplyr::mutate(
+      hladr = trans_resp(hladr)
+    )
+  
+  # calculate residual standard deviation
+  fit_large <- try(quantreg::rq(
+    hladr ~ 1 + days + sex + race, 
+    tau = 0.5,
+    data = data_mod
+  ), silent = TRUE)
+  
+  out_tbl <- tibble::tibble(
+    pop = pop,
+    age = "adult"
+  ) %>%
+    dplyr::mutate(
+      sd_std = sd(resid(summary(fit_large, se = "rank")))
+    )
+  
+  day_vec <- c("any", "0", "21", "35", "365")
+  results_tbl_day <- purrr::map_df(day_vec, function(day) {
+    
+    if (day == "any") {
+      
+      make_pos_strict <- function(x) {
+        range_x <- diff(range(x, na.rm = TRUE))
+        diff_x <- range_x * 0.01
+        min_x <-  min(diff_x, min(x[x > 0], na.rm = TRUE),
+                      na.rm = TRUE)
+        pmax(min_x, x)
+        }
+      
+      data_mod_mm <- switch(
+        pop, 
+        "cd1b" = ,
+        "gd" = {
+          data_mod %>%
+            dplyr::mutate(
+              hladr = make_pos_strict(hladr)
+            )
+        }, 
+        data_mod
+      )
+      
+      mod_family <- switch(
+        pop, 
+        "cd1b" = ,
+        "gd" = {
+          Gamma(link = "log")
+        }, 
+        gaussian(link = "identity")
+      )
+      
+      # overall p-value
+      fit_large_overall <- glmmTMB::glmmTMB(
+         hladr ~ 1 + days + sex + race, 
+        data = data_mod_mm, 
+        family = mod_family
+      )
+      fit_small_overall <- glmmTMB::glmmTMB(
+         hladr ~ 1 + sex + race, 
+        data = data_mod_mm, 
+        family = mod_family
+      )
+      diff_p_overall_mm <- modutils:::.test_lr(
+        mod_large = fit_large_overall, 
+        mod_small = fit_small_overall
+      )$p
+      
+      diff_p_overall_kw <- kruskal.test(
+        x = data_mod$hladr, 
+        g = data_mod$days
+      )$p.value
+      
+      out_tbl <- tibble::tibble(
+        day = day,
+        est = NA, 
+        lb = NA,
+        ub = NA,
+        diff_p = diff_p_overall_mm, 
+        diff_est = NA, 
+        diff_lb = NA, 
+        diff_ub = NA
+      )
+      return(out_tbl)
+    }
+    
+    # test for effect
+    if (day != "0") {
+      data_mod_wsc <- data_mod %>%
+        dplyr::filter(days %in% c("0", day)) %>%
+        dplyr::select(pid, days, hladr) %>%
+         tidyr::pivot_wider(
+          names_from = "days", 
+          values_from = "hladr"
+        )  
+      wsc_test <- wilcox.test(
+        x = data_mod_wsc[[day]],
+        y = data_mod_wsc[["0"]], 
+        paired = TRUE, 
+        conf.int = TRUE
+      )
+      diff_p_wsc <- wsc_test$p.value[[1]]
+      diff_est_wsc <- wsc_test$estimate[[1]]
+      diff_lb_wsc <- wsc_test$conf.int[[1]]
+      diff_ub_wsc <- wsc_test$conf.int[[2]]  
+    } else {
+      diff_p_wsc <- NA
+      diff_est_wsc <- NA
+      diff_lb_wsc <- NA
+      diff_ub_wsc <- NA
+    }
+    
+    extra_day <- ifelse(day == "0", "21", "0")
+    fit_day <- try(quantreg::rq(
+      hladr ~ 1 + days + sex + race,
+      tau = 0.5,
+      data = data_mod %>%
+        dplyr::filter(days %in% c(extra_day, day)) %>%
+        dplyr::select(sex, race, hladr, days) %>%
+        dplyr::mutate(days = factor(
+          days, 
+          levels = c(
+            day, 
+            extra_day
+          )
+        ))
+      ), silent = TRUE)
+    
+    mod_summ <- summary(fit_day, se = "rank")
+  
+    coef_tbl <- coefficients(mod_summ)
+    coef_vec <- coef_tbl[1, c("lower bd", "upper bd")] %>%
+      as.vector()
+    coef_est <- coef_tbl[1, "coefficients"]
+    
+    tibble::tibble(
+      day = day,
+      est = coef_est, 
+      lb = coef_vec[1], 
+      ub = coef_vec[2], 
+      diff_p = diff_p_wsc, 
+      diff_est = diff_est_wsc, 
+      diff_lb = diff_lb_wsc, 
+      diff_ub = diff_ub_wsc
+      )
+  }) %>%
+    dplyr::mutate(
+      diff_est_std = diff_est / out_tbl$sd_std, 
+      diff_lb_std = diff_lb / out_tbl$sd_std, 
+      diff_ub_std = diff_ub / out_tbl$sd_std
+    )
+  
+  out_tbl <- out_tbl %>%
+    dplyr::bind_cols(
+      results_tbl_day
+    )
+
+  # transform CI's back to original scale
+  
+  out_tbl <- out_tbl %>%
+    dplyr::mutate(
+      est = trans_inv(est),
+      lb = trans_inv(lb),
+      ub = trans_inv(ub)
+    )
+  
+  out_tbl
+}) %>%
+  dplyr::group_by(
+    day
+  ) %>%
+  dplyr::mutate(
+    diff_p_bonf = p.adjust(diff_p, method = "bonferroni")
+  )
+```
+
+#### Effect of BCG by any day
+
+```{r , results = "asis"}
+results_tbl_fig4_std %>%
+  dplyr::filter(day == "any") %>%
+  dplyr::select(pop, age, diff_p) %>%
+  dplyr::mutate(pop = short_to_long_pop[pop]) %>%
+  dplyr::arrange(diff_p) %>%
+  dplyr::mutate(diff_p_bonf = p.adjust(diff_p, method = "bonf")) %>%
+  dplyr::rename(Pop = pop, 
+                Age = age, 
+                `BCG effect: p-value` = diff_p, 
+                `BCG effect: q-value (Bonf)` = diff_p_bonf) %>%
+  pander::pandoc.table() 
+```
+
+#### Effect of BCG for individual days
+
+```{r , results = "asis"}
+results_tbl_fig4_std %>%
+  dplyr::filter(!day %in% c("any", "0")) %>%
+  dplyr::group_by(day) %>%
+  dplyr::select(pop, age, day, diff_est, diff_p) %>%
+  dplyr::mutate(pop = short_to_long_pop[pop]) %>%
+  dplyr::arrange(diff_p) %>%
+  dplyr::mutate(diff_p_bonf = p.adjust(diff_p, method = "bonf")) %>%
+  dplyr::ungroup() %>%
+  dplyr::rename(Pop = pop, 
+                Age = age, 
+                `BCG effect: p-value` = diff_p, 
+                `BCG effect: q-value (Bonf)` = diff_p_bonf) %>%
+  pander::pandoc.table()
+```
+
+#### Plotting
+
+```{r }
+pop_to_lab_hladr_adult <- c(
+  "mait" = bquote(paste(plain(paste("MAIT cells (MFI)")))), 
+  "nkt" = bquote(paste(plain(paste("NKT cells (MFI)")))),
+  "cd1b" = bquote(paste(plain(paste("CD1b-GMM T cells (MFI)")))),
+  "gd" = bquote(paste(gamma, delta, plain(paste(" T cells (MFI)")))),                     
+  "cd4" = bquote(paste(plain(paste("CD4+ T cells (MFI)"))))
+)
+
+pop_to_lab_hladr_adult_diff <- c(
+  "mait" = bquote(paste(plain(paste("Standardised ")), Delta, paste(plain(paste("vs pre-vacc"))))), 
+  "nkt" = bquote(paste(plain(paste("Standardised ")), Delta, paste(plain(paste("vs pre-vacc"))))),
+  "cd1b" = bquote(paste(plain(paste("Standardised ")), Delta, paste(plain(paste("vs pre-vacc"))))),
+  "gem" = bquote(paste(plain(paste("Standardised ")), Delta, paste(plain(paste("vs pre-vacc"))))),
+  "gd" = bquote(paste(plain(paste("Standardised ")), Delta, paste(plain(paste("vs pre-vacc"))))), 
+  "cd4" = bquote(paste(plain(paste("Standardised ")), Delta, paste(plain(paste("vs pre-vacc"))))), 
+  "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta, paste(plain(paste("vs pre-vacc")))))
+)
+```
+
+```{r , include = FALSE}
+plot_list_fig4 <- get_fig_4_sub_plots()
+
+plot_list_align <- purrr::map(seq_along(plot_list_fig4), function(i) {
+  list(ggplot() + geom_blank() + theme_void(), 
+       plot_list_fig4[[i]]$p_grp,
+       ggplot() + geom_blank() + theme_void())
+})
+
+p_fig4_grp <- cowplot::plot_grid(
+  plotlist = plot_list_align %>%
+    purrr::flatten(), 
+  ncol = 6,
+  rel_widths = c(0.15, 2, 1, 0.15, 2, 1), 
+  align = "hv", 
+  axis = "lrtb"
+)
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_4-grp.pdf"
+  )
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_fig4_grp, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+od(path_fig_rel_pdf)
+
+p_fig4_diff <- p_fig4_grp
+nudge_y_diff <- 0
+y_vec <- rep(1 - 1/3 * 1:3, each = 2) + nudge_y_diff
+
+for(i in seq_along(plot_list_fig4)) {
+  p_fig4_diff <- p_fig4_diff +
+    cowplot::draw_plot(
+      plot_list_fig4[[i]]$p_diff, 
+      width = 1/6, 
+      height = 1/3 - nudge_y_diff - 0.0105, 
+      x = x_vec[i], 
+      y = y_vec[i]
+    ) 
+}
+
+x_vec_hladr <- rep(c(0.02, 0.52), 3)
+y_vec_hladr <- rep(0.5, 6)
+nudge_down <- 0.0125
+p_fig4_diff <- p_fig4_diff + 
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.03, 
+      y = 0.885 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.54, 
+      y = 0.885 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.0175, 
+      y = 0.5525 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.5275, 
+      y = 0.5525 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+    text = "HLADR+", 
+    x = 0.036375, 
+    y = 0.2167 - nudge_down, 
+    angle = 90, 
+    hjust = 0.5, 
+    vjust = 0.5
+  ) 
+
+plot_tbl_legend <- tibble::tibble(
+  x = c(0.5, 0.5), 
+  y = c(0.6, 0.5), 
+  col = c("red", "dodgerblue"), 
+  shape = c("circle"), 
+  lbl = c("Pre-BCG", "Post-BCG")
+)
+
+p_legend <- ggplot(plot_tbl_legend) + 
+  theme_void() + 
+  geom_point(aes(x, y, col = col), 
+             show.legend = FALSE, 
+             size = 2, alpha = 0.5) +
+  lims(x = 0:1, y = 0:1) +
+  geom_text(aes(x = x + 0.05, y, label = lbl), 
+            hjust = 0, size = 4.25) +
+  scale_colour_manual(
+    values = c(
+      "red" = "red", 
+      "dodgerblue" = "dodgerblue"
+    )
+  )
+p_fig4 <- p_fig4_diff + 
+  cowplot::draw_plot(
+    plot = p_legend, 
+    y = 0, 
+    x = 1/2, 
+    width = 1/2, 
+    height = 1/4
+  )
+  
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_4.pdf"
+  )
+path_fig_rel_png <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_4.png"
+  )
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_fig4, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+od(path_fig_rel_pdf)
+cowplot::ggsave2(
+  path_fig_rel_png, 
+  p_fig4, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+```
