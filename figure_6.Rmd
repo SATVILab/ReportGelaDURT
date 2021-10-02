@@ -1,0 +1,590 @@
+# Figure 6
+
+## Relevant criticisms
+
+## Proposed approach
+
+## Data exploration
+
+```{r }
+data_raw_fig6 <- DataTidyGelaDURT::data_tidy_mem_infant %>%
+  dplyr::rename(
+    grp = bcg
+  ) %>%
+  dplyr::bind_rows(
+    DataTidyGelaDURT::data_tidy_mem_adult %>%
+      dplyr::rename(
+        grp = day
+      ) %>%
+      dplyr::mutate(
+        grp = paste0("day_", grp)
+      ) %>%
+      dplyr::filter(
+        grp %in% c("day_0", "day_365")
+      )
+  )
+
+
+pop_vec <- c("mait", "nkt", "gd", "cd4")
+pop_sub_vec <- c(
+  "CD45RA+CCR7+", "CD45RA-CCR7+", "CD45RA-CCR7-", "CD45RA+CCR7-" 
+)
+data_raw_fig6 <- data_raw_fig6 %>%
+  dplyr::mutate(
+    pop = factor(
+      pop, 
+      levels = pop_vec
+    ), 
+    pop_sub = factor(
+      pop_sub, 
+      levels = pop_sub_vec
+    )
+  ) %>%
+  dplyr::mutate(
+    grp = factor(
+      grp, 
+      levels = c(
+        "no bcg", 
+        "bcg", 
+        "day_0", 
+        "day_365"
+      )
+    )
+  )
+data_tidy_clin <- data_tidy_clin_adult %>%
+  dplyr::select(pid, race, sex) %>%
+  dplyr::bind_rows(
+    data_tidy_clin_infant %>%
+      dplyr::select(pid, race, sex) %>%
+      dplyr::mutate(race = ifelse(race == "coloured", "non_black", race))
+  )
+
+data_tidy_fig6 <- data_raw_fig6 %>%
+  dplyr::left_join(
+    data_tidy_clin, 
+    by = "pid"
+  ) %>%
+  dplyr::mutate(
+    race = factor(race, 
+              levels = c("non_black", "black")), 
+    sex = factor(
+      sex, 
+      levels = c("female", "male")
+    )
+  )
+
+data_tidy_fig6 <- data_tidy_fig6 %>%
+  dplyr::mutate(
+    x_order = paste0(pop_sub, "_", grp)
+  ) %>%
+  dplyr::arrange(
+    pop, pop_sub, grp
+  )
+
+chr_to_num_x_order <- setNames(
+  seq_along(unique(data_tidy_fig6$x_order)), 
+  unique(data_tidy_fig6$x_order)
+)
+data_tidy_fig6 <- data_tidy_fig6 %>%
+  dplyr::mutate(
+    x_order_num = chr_to_num_x_order[x_order]
+  ) %>%
+  dplyr::mutate(
+    pop_x_order = paste0(pop, "_", x_order), 
+    pop_pop_sub = paste0(pop, "_", pop_sub)
+  )
+x_order_vec <- unique(data_tidy_fig6$x_order)
+pop_x_order_vec <- unique(data_tidy_fig6$pop_x_order)
+pop_pop_sub_vec <- unique(data_tidy_fig6$pop_pop_sub)
+```
+
+```{r }
+pop_to_lab_mem <- c(
+  "mait" = bquote(paste(plain(paste("MAIT cells (%)")))), 
+  "nkt" = bquote(paste(plain(paste("NKT cells (%)")))),
+  "cd1b" = bquote(paste(plain(paste("CD1b-GMM+ T cells (%)")))),
+  "gem" = bquote(paste(plain(paste("GEM T cells (%)")))),
+  "gd" = bquote(paste(gamma, delta, plain(paste("TCR+ cells (%)")))), 
+  "cd4" = bquote(paste(plain(paste("CD4+ T cells (%)")))), 
+  "cd4_ifng" = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD4+ T cells (%)"))))
+)
+
+pop_to_lab_mem_diff <- c(
+  "mait" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "nkt" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "cd1b" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gem" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gd" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta))
+)
+```
+
+### Identity transformation
+
+```{r }
+p <- ggplot(
+  data_tidy_fig6 %>%
+    dplyr::mutate(
+      grp = factor(
+        grp, 
+        levels = c("no bcg", "bcg", "day_0", "day_365")
+      )
+    ), 
+  aes(x = x_order, fill = pop_sub)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "xy") +
+  geom_boxplot(aes(y = freq)) +
+  facet_wrap(~pop, ncol = 4) +
+  theme(axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank()) +
+  scale_x_discrete(
+    breaks = x_order_vec, 
+    limits = x_order_vec
+  )
+for (x in unique(data_tidy_fig6$x_order)) {
+  p <- p + 
+    ggforce::geom_sina(aes(y = freq, shape = grp), maxwidth = 0.75, 
+                       scale = "width", 
+                       data = data_tidy_fig6 %>%
+                         dplyr::filter(x_order == x))
+}
+p 
+```
+
+### Square root transformation
+
+```{r }
+p +
+  scale_y_sqrt()
+```
+
+It generally seems that the square root transformation makes the data nicer to work with, as long as the median response is less than 0.75. Above that the identity transformation using the beta distribution may work better, especially for those capped at 100. In that case, the frequencies should be divided by 100 to work with proportions instead. 
+
+## Analysis
+
+### Calculation
+
+```{r }
+pop_pop_sub_to_trans_obj_tbl <- data_tidy_fig6 %>%
+  dplyr::group_by(pop_pop_sub, grp) %>%
+  dplyr::summarise(med = median(freq, na.rm = TRUE),
+                   .groups = "drop_last"
+                   ) %>%
+  dplyr::summarise(trans = list(switch(
+    as.character(any(med > 0.5)), 
+    "TRUE" = scales::identity_trans(), 
+    "FALSE" = scales::sqrt_trans()
+  )))
+pop_pop_sub_to_trans_obj <- pop_pop_sub_to_trans_obj_tbl$trans %>%
+  setNames(pop_pop_sub_to_trans_obj_tbl$pop_pop_sub)
+```
+
+```{r }
+pop_pop_sub <- pop_pop_sub_vec[1]
+results_list_fig6 <- purrr::map(pop_pop_sub_vec, function(pop_pop_sub) {
+  data_tidy_mod <- data_tidy_fig6 %>%
+    dplyr::filter(pop_pop_sub == .env$pop_pop_sub) 
+  
+  trans_obj <- pop_pop_sub_to_trans_obj[[pop_pop_sub]]
+  
+  data_tidy_mod <- data_tidy_mod %>%
+    dplyr::mutate(prop = freq / 1e2) %>%
+    dplyr::mutate(prop = trans_obj$transform(prop))
+  
+  # =======================
+  # get estimates and ci
+  # =======================
+  
+  age_vec <- unique(data_tidy_mod$age)
+  age <- age_vec[1]
+  est_ci_tbl <- purrr::map_df(age_vec, function(age) {
+    data_tidy_mod_est_ci  <- data_tidy_mod %>%
+      dplyr::filter(age == .env$age)
+    grp_vec <- unique(data_tidy_mod_est_ci$grp) %>%
+      as.character()
+    grp <- grp_vec[1] 
+    purrr::map_df(grp_vec, function(grp) {
+      print(grp)
+      data_tidy_mod_est_ci_grp <- data_tidy_mod_est_ci %>%
+        dplyr::mutate(
+          grp = factor(
+            grp, 
+            levels = c(
+              .env$grp, 
+              setdiff(grp_vec, .env$grp)
+            )
+          )
+        )
+      # calculate residual standard deviation
+      fit_large <- try(quantreg::rq(
+        freq ~ 1 + grp + sex + race, 
+        tau = 0.5,
+        data = data_tidy_mod_est_ci_grp
+      ), silent = TRUE)
+      
+      sd_std = sd(resid(summary(fit_large, se = "rank")))
+      
+      # calculate unadjusted eff and ci
+      fit_large <- try(quantreg::rq(
+        freq ~ 1 + grp, 
+        tau = 0.5,
+        data = data_tidy_mod_est_ci_grp
+      ), silent = TRUE)
+      mod_summ <- summary(fit_large, se = "rank")
+
+      coef_tbl <- coefficients(mod_summ)
+      coef_vec <- coef_tbl[1, c("lower bd", "upper bd")] %>%
+        as.vector()
+      coef_est <- coef_tbl[1, "coefficients"]
+      
+      sd_std = sd(resid(summary(fit_large, se = "rank")))
+      tibble::tibble(
+        pop = data_tidy_mod_est_ci_grp$pop[[1]],
+        age = age, 
+        pop_pop_sub = pop_pop_sub, 
+        pop_sub = gsub("\\w+_", "", pop_pop_sub), 
+        grp = grp, 
+        sd_std = sd_std,
+        est = coef_est,
+        lb = coef_vec[1], 
+        ub = coef_vec[2]
+        ) %>%
+        dplyr::mutate(
+          est = trans_obj$inverse(est), 
+          lb = trans_obj$inverse(lb), 
+          ub = trans_obj$inverse(ub)
+        )
+    })
+  })
+  
+  # =======================
+  # get diff est, ci and p-value
+  # =======================
+  
+  var_exp_vec <- c("bcg", "day_365", "adult")
+  var_exp_to_lvl <- list(
+    "bcg" = c("no bcg", "bcg"), 
+    "day_365" = c("day_0", "day_365"), 
+    "adult" = c("infant", "adult")
+  )
+  var_exp_to_col <- c(
+    "bcg" = "grp", 
+    "day_365" = "grp", 
+    "adult" = "age"
+  )
+  var_exp <- var_exp_vec[1]
+  var_exp_to_fml_trt <- list(
+    "bcg" = freq ~ 1 + grp + sex + race, 
+    "day_365" = freq ~ 1 + grp + sex + race,
+    "adult" = freq ~ 1 + age + sex + race
+  )
+  var_exp_to_fml_null <- list(
+    "bcg" = freq ~ 1  + sex + race, 
+    "day_365" = freq ~ 1 + sex + race,
+    "adult" = freq ~ 1 + sex + race
+  )
+  
+  var_exp <- var_exp_vec[3]
+  diff_tbl <- purrr::map_df(var_exp_vec, function(var_exp) {
+    print(var_exp)
+    sel_vec <- data_tidy_mod[[var_exp_to_col[[var_exp]]]] %in%
+      var_exp_to_lvl[[var_exp]]
+    data_tidy_mod_diff <- data_tidy_mod[sel_vec,]
+    if (var_exp == "adult") {
+      data_tidy_mod_diff <- data_tidy_mod_diff %>%
+        dplyr::mutate(age = factor(
+          age, 
+          levels = c("infant", "adult")
+        )) 
+      data_tidy_mod_diff <- data_tidy_mod_diff %>%
+        dplyr::filter(grp %in% c("bcg", "day_365"))
+      data_tidy_mod_diff <- data_tidy_mod_diff %>%
+        dplyr::mutate(
+          grp = as.character(grp),
+          grp = purrr::map_chr(grp, function(x) {
+            switch(
+              x,
+              "day_0" = "no bcg", 
+              "day_365" = "bcg", 
+              x
+              )
+          }) 
+        )
+    }
+    grp_vec <- unique(data_tidy_mod_est_ci$grp) %>%
+      as.character()
+    grp <- grp_vec[1] 
+    fit_large <- try(quantreg::rq(
+      var_exp_to_fml_trt[[var_exp]], 
+      tau = 0.5,
+      data = data_tidy_mod_diff
+    ), silent = TRUE)
+    fit_small <- try(quantreg::rq(
+      var_exp_to_fml_null[[var_exp]], 
+      tau = 0.5,
+      data = data_tidy_mod_diff
+    ), silent = TRUE)
+    anova_fit <- anova(fit_large, fit_small)
+    p <- anova_fit$table$pvalue
+    mod_summ <- summary(fit_large)
+    coef_tbl <- coefficients(mod_summ) 
+    ind_var_exp <- which(rownames(coef_tbl) == paste0(
+      var_exp_to_col[[var_exp]], 
+      var_exp
+    ))
+    coef_vec <- coef_tbl[ind_var_exp, c("lower bd", "upper bd")] %>%
+      as.vector()
+    coef_est <- coef_tbl[ind_var_exp, "coefficients"]
+    tibble::tibble(
+      pop =  gsub("_\\w*", "", pop_pop_sub),
+      age = age, 
+      pop_pop_sub = pop_pop_sub, 
+      pop_sub = gsub("\\w+_", "", pop_pop_sub), 
+      var_exp = var_exp,
+      diff_est = coef_est,
+      diff_lb = coef_vec[1], 
+      diff_ub = coef_vec[2], 
+      diff_p = p
+      ) %>%
+      dplyr::mutate(
+        pop =  gsub("\\+\\w*|\\-\\w*", "", pop)
+      )
+  })
+  
+  diff_tbl <- diff_tbl %>%
+    dplyr::left_join(
+      est_ci_tbl %>%
+        dplyr::filter(!grp %in% c("no bcg", "day_0")) %>%
+        dplyr::rename(var_exp = grp) %>%
+        dplyr::select(var_exp, sd_std) %>%
+        dplyr::bind_rows(
+          est_ci_tbl %>%
+            dplyr::filter(!grp %in% c("no bcg", "day_0")) %>%
+            dplyr::rename(var_exp = grp) %>%
+            dplyr::select(var_exp, sd_std) %>%
+            dplyr::summarise(sd_std = mean(sd_std)) %>%
+            dplyr::mutate(var_exp = "adult")
+        )
+    ) %>%
+    dplyr::mutate(
+      diff_est_std = diff_est / sd_std, 
+      diff_lb_std = diff_lb / sd_std, 
+      diff_ub_std = diff_ub / sd_std, 
+    ) %>%
+    dplyr::select(
+      -c(diff_est, diff_lb, diff_ub)
+    )
+  list("est_ci_tbl" = est_ci_tbl, 
+       "diff_tbl" = diff_tbl)
+})
+
+results_tbl_fig6_est_ci <- purrr::map_df(results_list_fig6, function(x) x$est_ci_tbl) %>%
+  dplyr::mutate(pop = as.character(pop))
+results_tbl_fig6_diff <- purrr::map_df(results_list_fig6, function(x) x$diff_tbl) %>%
+  dplyr::group_by(
+    var_exp
+  ) %>%
+  dplyr::mutate(diff_p_bonf = p.adjust(diff_p, method = "bonferroni")) %>%
+  dplyr::ungroup()
+```
+
+### Results
+
+#### Effect of BCG in infants
+
+```{r }
+results_tbl_fig6_diff %>%
+  dplyr::filter(var_exp == "bcg") %>%
+  dplyr::select(pop, pop_sub, diff_est_std, diff_p, diff_p_bonf) %>%
+  dplyr::arrange(diff_p)
+```
+
+#### Effect of BCG in adult
+
+```{r }
+results_tbl_fig6_diff %>%
+  dplyr::filter(var_exp == "day_365") %>%
+  dplyr::select(pop, pop_sub, diff_est_std, diff_p, diff_p_bonf) %>%
+  dplyr::arrange(diff_p)
+```
+
+#### Effect of age amongst BCG-vaccinated participants
+
+```{r }
+results_tbl_fig6_diff %>%
+  dplyr::filter(var_exp == "adult") %>%
+  dplyr::select(pop, pop_sub, diff_est_std, diff_p, diff_p_bonf) %>%
+  dplyr::arrange(diff_p)
+```
+
+### Plots
+
+```{r }
+pop_to_lab_hladr <- c(
+  "mait" = bquote(paste(plain(paste("MAIT cells (MFI)")))), 
+  "nkt" = bquote(paste(plain(paste("NKT cells (MFI)")))),
+  "cd1b" = bquote(paste(plain(paste("CD1b-GMM T cells (MFI)")))),
+  "gd" = bquote(paste(gamma, delta, plain(paste(" T cells (MFI)")))),                     
+  "cd4" = bquote(paste(plain(paste("CD4+ T cells (MFI)"))))
+)
+
+pop_to_lab_hladr_diff <- c(
+  "mait" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "nkt" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "cd1b" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gem" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gd" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta))
+)
+```
+
+```{r , include = FALSE}
+plot_list_fig6 <- get_fig_6_sub_plots()
+
+plot_list_align <- purrr::map(seq_along(plot_list_fig6), function(i) {
+  list(ggplot() + geom_blank() + theme_void(), 
+       plot_list_fig6[[i]]$p_grp,
+       ggplot() + geom_blank() + theme_void())
+})
+
+p_fig6_grp <- cowplot::plot_grid(
+  plotlist = plot_list_align %>%
+    purrr::flatten(), 
+  ncol = 6,
+  rel_widths = c(0.15, 2, 1, 0.15, 2, 1), 
+  align = "hv", 
+  axis = "lrtb"
+)
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_6-grp.pdf"
+  )
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_fig6_grp, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+od(path_fig_rel_pdf)
+
+p_fig6_diff <- p_fig6_grp
+nudge_y_diff <- 0
+y_vec <- rep(1 - 1/3 * 1:3, each = 2) + nudge_y_diff
+
+for(i in seq_along(plot_list_fig6)) {
+  p_fig6_diff <- p_fig6_diff +
+    cowplot::draw_plot(
+      plot_list_fig6[[i]]$p_diff, 
+      width = 1/6, 
+      height = 1/3 - nudge_y_diff - 0.0105, 
+      x = x_vec[i], 
+      y = y_vec[i]
+    ) 
+}
+
+x_vec_hladr <- rep(c(0.02, 0.52), 3)
+y_vec_hladr <- rep(0.5, 6)
+nudge_down <- 0.0125
+p_fig6_diff <- p_fig6_diff + 
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.03, 
+      y = 0.885 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.54, 
+      y = 0.885 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.0175, 
+      y = 0.5525 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+      text = "HLADR+", 
+      x = 0.5275, 
+      y = 0.5525 - nudge_down, 
+      angle = 90, 
+      hjust = 0.5, 
+      vjust = 0.5
+    ) +
+  cowplot::draw_text(
+    text = "HLADR+", 
+    x = 0.036375, 
+    y = 0.2167 - nudge_down, 
+    angle = 90, 
+    hjust = 0.5, 
+    vjust = 0.5
+  ) 
+
+plot_tbl_legend <- tibble::tibble(
+  x = c(0.5, 0.5), 
+  y = c(0.6, 0.5), 
+  col = c("red", "dodgerblue"), 
+  shape = c("circle"), 
+  lbl = c("Pre-BCG", "Post-BCG")
+)
+
+p_legend <- ggplot(plot_tbl_legend) + 
+  theme_void() + 
+  geom_point(aes(x, y, col = col), 
+             show.legend = FALSE, 
+             size = 2, alpha = 0.5) +
+  lims(x = 0:1, y = 0:1) +
+  geom_text(aes(x = x + 0.05, y, label = lbl), 
+            hjust = 0, size = 4.25) +
+  scale_colour_manual(
+    values = c(
+      "red" = "red", 
+      "dodgerblue" = "dodgerblue"
+    )
+  )
+p_fig6 <- p_fig6_diff + 
+  cowplot::draw_plot(
+    plot = p_legend, 
+    y = 0, 
+    x = 1/2, 
+    width = 1/2, 
+    height = 1/4
+  )
+  
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_6.pdf"
+  )
+path_fig_rel_png <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_6.png"
+  )
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_fig6, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+od(path_fig_rel_pdf)
+cowplot::ggsave2(
+  path_fig_rel_png, 
+  p_fig6, 
+  height = 29 * 3/4, 
+  width = 19, 
+  units = "cm"
+)
+```
