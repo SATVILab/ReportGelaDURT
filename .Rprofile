@@ -95,4 +95,8 @@ if (interactive()) {
     setNames(names(dir_fig_vec))
   purrr::walk(dir_fig_vec, function(x) if(!dir.exists(x)) dir.create(x, recursive = TRUE))
 
+  r_file_vec <- list.files(file.path(here::here(), "R"),
+                           full.names = TRUE)
+  for(i in seq_along(r_file_vec)) source(r_file_vec[i])
+
 }
