@@ -540,14 +540,24 @@ cowplot::ggsave2(
 
 
 grp_to_col = c(
-  "no bcg" = "#a6cee3",
-  "bcg" = "#1f78b4",
-  "day_0" = "#b2df8a",
-  "day_365" = "#33a02c"
+  "no bcg" = "dodgerblue",
+  "bcg" = "red",
+  "day_0" = "dodgerblue",
+  "day_365" = "red"
 )
 grp_to_x <- setNames(
   rep(c(0, 0.25), each = 2) + 0.125, # was 0.225
   names(grp_to_col)
+)
+grp_to_shape <- setNames(
+  rep(age_to_shape[1:2], each = 2)
+  ,
+  c(
+    "no bcg",
+    "bcg", 
+    "day_0", 
+    "day_365"
+    )
 )
 grp_to_y <- setNames(
   rep(c(0.5, 0.3), 2),
@@ -567,16 +577,18 @@ plot_tbl_legend_grp <- purrr::map_df(unique(names(grp_to_col)), function(grp) {
     y = grp_to_y[grp],
     col = grp_to_col[grp], 
     alpha = 0.5, 
-    lbl = grp_to_lab[grp]
+    lbl = grp_to_lab[grp], 
+    shape = grp_to_shape
   )
 })
 
 
-var_exp_to_shape <- c(
+grp_or_var_exp_to_shape <- c(
   "bcg_diff" = "triangle filled",
   "day_365_diff" = "circle filled",
   "adult_bcg" = "square filled"
-)
+) %>%
+  c(grp_to_shape)
 
 var_exp_to_fill <- c(
   "bcg_diff" = "#7570b3",
@@ -594,7 +606,7 @@ var_exp_to_x <- setNames(
 var_exp_to_lab <- setNames(
   c("BCG: infant",
     "BCG: adult", 
-    "Adult vs infant: BCG-vacc."),
+    "Adult vs infant: BCG vacc."),
   names(var_exp_to_fill)
 )
 plot_tbl_legend_diff <- purrr::map_df(rev(unique(names(var_exp_to_x))), function(var_exp) {
@@ -612,7 +624,7 @@ p_legend <- ggplot() +
   geom_point(
     data = plot_tbl_legend_grp, 
     aes(x = x - 0.0175, y = y, col = grp, 
-        alpha = alpha), 
+        alpha = alpha, shape = grp), 
     size = 3
   ) +
   geom_text(
@@ -645,9 +657,10 @@ p_legend <- ggplot() +
     size = 4.25 
   ) +
   geom_point(
-    data = plot_tbl_legend_diff, 
+    data = plot_tbl_legend_diff %>%
+      dplyr::mutate(grp = var_exp), 
     aes(x = x + 0.0075, y = y, fill = var_exp, 
-        shape = var_exp), 
+        shape = grp), 
     size = 3
   ) +
   geom_text(
@@ -661,7 +674,7 @@ p_legend <- ggplot() +
     values = grp_to_col
   ) +
   scale_shape_manual(
-    values = var_exp_to_shape
+    values = grp_or_var_exp_to_shape
   ) +
   scale_fill_manual(
     values = var_exp_to_fill 

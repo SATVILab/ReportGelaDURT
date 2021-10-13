@@ -89,27 +89,27 @@ get_fig_6_sub_plots <- function() {
       scale_x_continuous(
         expand = expansion(mult = 0, add = c(0.1, 0))
       )
-    browser()
+
     for (x_order in x_order_vec) {
       p <- p +
         ggforce::geom_sina(
           data = data_raw_pop %>%
             dplyr::filter(x_order == .env$x_order) %>%
-            dplyr::mutate(vacc = purrr::map_chr(grp, function(x) {
+            dplyr::mutate(vacc = purrr::map_chr(as.character(grp), function(x) {
               switch(
                 x,
                 "day_0" = ,
-                "before" = "unvacc",
+                "no bcg" = "unvacc",
                 "day_365" = ,
-                "after" = "vacc",
+                "bcg" = "vacc",
                 stop(paste0(x, " not recognised"))
               )
             })),
-          aes(x = x_order_num, y = freq, col = vacc, shape = age),
+          aes(x = x_order_num, y = freq, col = vacc, shape = age,
+              size = age),
           alpha = 0.5,
           maxwidth = 0.75,
-          scale = "width",
-          size= 1
+          scale = "width"
         )
     }
 
@@ -134,24 +134,27 @@ get_fig_6_sub_plots <- function() {
       color_vec,
       pop_sub_vec
     )
+
     p_raw <- p +
       scale_colour_manual(
         values = c(
-          "no bcg" = "#a6cee3",
-          "bcg" = "#1f78b4",
-          "day_0" = "#b2df8a",
-          "day_365" = "#33a02c"
+          "unvacc" = "dodgerblue",
+          "vacc" = "red"
         )
       ) +
-      guides("colour" = "none") +
       theme(axis.text.x = element_blank(),
             axis.title.x = element_blank()) +
       scale_shape_manual(
+        values = age_to_shape
+      ) +
+      scale_size_manual(
         values = c(
-          "infant" = "triangle",
-          "adult" = "square"
+          "infant" = 1,
+          "adult" = 1.35
         )
       ) +
+      guides("colour" = "none", "shape" = "none") +
+      theme(legend.position = "none") +
       expand_limits(y = c(0, 100)) +
       geom_hline(yintercept = c(0, 100), col = "gray85")
 
