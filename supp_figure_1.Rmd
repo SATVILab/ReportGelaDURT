@@ -8,3 +8,48 @@
 ## Proposed approach
 
 - Same as for figure 4
+
+## Relevant criticisms
+
+## Proposed approach
+
+## Data exploration
+
+```{r }
+data_tidy_mem <- DataTidyGelaDURT::data_tidy_mem %>%
+  tibble::as_tibble()
+
+data_mod_mem <- data_tidy_mem %>%
+  dplyr::filter(age == "adult") %>% 
+  dplyr::select(-age) %>%
+  dplyr::left_join(
+    data_tidy_clin_adult %>%
+      dplyr::select(-c(age_in_years:ppd)), 
+    by = "pid"
+  ) %>%
+  dplyr::rename(days = grp) %>%
+  dplyr::mutate(
+  days = factor(
+    days, 
+    levels = as.character(c(0, 21, 35, 365))
+  ), 
+  pop = factor(pop, 
+               levels = c(
+                 "cd4",
+                 "mait", 
+                 "nkt",
+                 "gd"
+               ))
+  ) %>%
+  dplyr::mutate(
+    day_type = ifelse(days == "0", "pre_bcg", "post_bcg")
+  ) %>%
+  dplyr::mutate(
+    race = factor(race, 
+              levels = c("non_black", "black")), 
+    sex = factor(
+      sex, 
+      levels = c("female", "male")
+    )
+  )
+```

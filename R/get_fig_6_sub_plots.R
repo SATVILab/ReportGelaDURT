@@ -37,7 +37,6 @@ get_fig_6_sub_plots <- function() {
           }
           2 * 50^rt + 1 * (elem - 100)
         })
-
       },
       inverse = function(x) {
         purrr::map_dbl(x, function(elem) {
@@ -52,6 +51,8 @@ get_fig_6_sub_plots <- function() {
       },
       name = "root"
     )
+
+    trans_root <- scales::identity_trans()
 
     test_tbl <- tibble::tibble(
       x = seq(0, 110, by= 10)
@@ -71,9 +72,8 @@ get_fig_6_sub_plots <- function() {
       trans_root$inverse()
 
     break_vec <- c(0, 1, 10, 50, 90, 99, 100)
-
+    break_vec <- seq(0, 100, by = 20)
     break_lab_vec <- as.character(break_vec)
-
 
     p <- ggplot(mapping = aes(x = x_order_num)) +
       cowplot::theme_cowplot() +
@@ -89,13 +89,23 @@ get_fig_6_sub_plots <- function() {
       scale_x_continuous(
         expand = expansion(mult = 0, add = c(0.1, 0))
       )
-
+    browser()
     for (x_order in x_order_vec) {
       p <- p +
         ggforce::geom_sina(
           data = data_raw_pop %>%
-            dplyr::filter(x_order == .env$x_order),
-          aes(x = x_order_num, y = freq, col = grp),
+            dplyr::filter(x_order == .env$x_order) %>%
+            dplyr::mutate(vacc = purrr::map_chr(grp, function(x) {
+              switch(
+                x,
+                "day_0" = ,
+                "before" = "unvacc",
+                "day_365" = ,
+                "after" = "vacc",
+                stop(paste0(x, " not recognised"))
+              )
+            })),
+          aes(x = x_order_num, y = freq, col = vacc, shape = age),
           alpha = 0.5,
           maxwidth = 0.75,
           scale = "width",
@@ -139,7 +149,7 @@ get_fig_6_sub_plots <- function() {
       scale_shape_manual(
         values = c(
           "infant" = "triangle",
-          "adult" = "circle"
+          "adult" = "square"
         )
       ) +
       expand_limits(y = c(0, 100)) +
@@ -174,116 +184,123 @@ get_fig_6_sub_plots <- function() {
 
     # if(pop != "") browser()
 
-    pop_sub <- pop_sub_vec[1]
-    p_tbl <- purrr::map_df(pop_sub_vec, function(pop_sub) {
-      data_raw_pop_pop_sub <- data_raw_pop %>%
-        dplyr::filter(pop_sub == .env$pop_sub)
-      range_axis_orig <- c(0, max(data_raw_pop_pop_sub$freq, na.rm = TRUE))
-      range_axis_orig_trans <- trans_root$transform(range_axis_orig)
+    if (TRUE) {
+      pop_sub <- pop_sub_vec[1]
+      p_tbl <- purrr::map_df(pop_sub_vec, function(pop_sub) {
+        data_raw_pop_pop_sub <- data_raw_pop %>%
+          dplyr::filter(pop_sub == .env$pop_sub)
+        range_axis_orig <- c(0, max(data_raw_pop_pop_sub$freq, na.rm = TRUE))
+        range_axis_orig <- c(0, 100)
+        range_axis_orig_trans <- trans_root$transform(range_axis_orig)
 
-      length_axis_orig_trans <- diff(range_axis_orig_trans)
-      y_pos_bcg_trans <- range_axis_orig_trans[2] + 0.05 * length_axis_orig_trans
-      y_pos_age_trans <- range_axis_orig_trans[2] + 0.275 * length_axis_orig_trans
-      var_exp_to_y_pos_trans <- c("day_365" = y_pos_bcg_trans,
-                                  "bcg" = y_pos_bcg_trans,
-                                  "adult_bcg" = y_pos_age_trans)
+        length_axis_orig_trans <- diff(range_axis_orig_trans)
+        y_pos_bcg_trans <- range_axis_orig_trans[2] + 0.05 * length_axis_orig_trans
+        y_pos_age_trans <- range_axis_orig_trans[2] + 0.3 * length_axis_orig_trans
+        var_exp_to_y_pos_trans <- c("day_365" = y_pos_bcg_trans,
+                                    "bcg" = y_pos_bcg_trans,
+                                    "adult_bcg" = y_pos_age_trans)
 
-      results_tbl_fig6_diff %>%
-        dplyr::filter(pop == .env$pop) %>%
-        dplyr::filter(pop_sub == .env$pop_sub) %>%
-        dplyr::select(age, pop_sub, var_exp,
-                      diff_p, diff_p_bonf) %>%
-        dplyr::filter(!var_exp == "adult_no_bcg") %>%
-        dplyr::mutate(
-          xmin = purrr::map_dbl(var_exp, function(x) {
-            switch(
-              x,
-              "bcg" = 0,
-              "day_365" = 2,
-              "adult_bcg" = 1
-            )
-          }),
-          xmax = purrr::map_dbl(var_exp, function(x) {
-            switch(
-              x,
-              "bcg" = 1,
-              "day_365" = 3,
-              "adult_bcg" = 3
-            )
-          })
-        ) %>%
-        dplyr::mutate(
-          xmin = xmin + purrr::map_dbl(pop_sub, function(x) {
-            switch(
-              x,
-              "CD45RA+CCR7+" = 1,
-              "CD45RA-CCR7+" = 5,
-              "CD45RA-CCR7-" = 9,
-              "CD45RA+CCR7-" = 13
-            )
-          }),
-          xmax = xmax + purrr::map_dbl(pop_sub, function(x) {
-            switch(
-              x,
-              "CD45RA+CCR7+" = 1,
-              "CD45RA-CCR7+" = 5,
-              "CD45RA-CCR7-" = 9,
-              "CD45RA+CCR7-" = 13
-            )
-          })
-        ) %>%
-        dplyr::mutate(
-          p_txt = purrr::map_chr(diff_p, function(p) {
-            paste0(
-              "p ",
-              ifelse(
-                p < 0.0001,
-                "< 0.0001",
-                paste0(" = ", signif(p, 2)))
-            )
-          }),
-          q_txt = purrr::map_chr(diff_p_bonf, function(p) {
-            paste0(
-              "(q ",
-              ifelse(
-                p < 0.0001,
-                "< 0.0001",
-                paste0(" = ", signif(p, 2))),
+        results_tbl_fig6_diff %>%
+          dplyr::filter(pop == .env$pop) %>%
+          dplyr::filter(pop_sub == .env$pop_sub) %>%
+          dplyr::select(age, pop_sub, var_exp,
+                        diff_p, diff_p_bonf) %>%
+          dplyr::filter(!var_exp == "adult_no_bcg") %>%
+          dplyr::mutate(
+            xmin = purrr::map_dbl(var_exp, function(x) {
+              switch(
+                x,
+                "bcg" = 0,
+                "day_365" = 2,
+                "adult_bcg" = 1
+              )
+            }),
+            xmax = purrr::map_dbl(var_exp, function(x) {
+              switch(
+                x,
+                "bcg" = 1,
+                "day_365" = 3,
+                "adult_bcg" = 3
+              )
+            })
+          ) %>%
+          dplyr::mutate(
+            xmin = xmin + purrr::map_dbl(pop_sub, function(x) {
+              switch(
+                x,
+                "CD45RA+CCR7+" = 1,
+                "CD45RA-CCR7+" = 5,
+                "CD45RA-CCR7-" = 9,
+                "CD45RA+CCR7-" = 13
+              )
+            }),
+            xmax = xmax + purrr::map_dbl(pop_sub, function(x) {
+              switch(
+                x,
+                "CD45RA+CCR7+" = 1,
+                "CD45RA-CCR7+" = 5,
+                "CD45RA-CCR7-" = 9,
+                "CD45RA+CCR7-" = 13
+              )
+            })
+          ) %>%
+          dplyr::mutate(
+            p_txt = purrr::map_chr(diff_p, function(p) {
+              paste0(
+                "p ",
+                ifelse(
+                  p < 0.0001,
+                  "< 0.0001",
+                  paste0(" = ", signif(p, 2)))
+              )
+            }),
+            q_txt = purrr::map_chr(diff_p_bonf, function(p) {
+              paste0(
+                "(q ",
+                ifelse(
+                  p < 0.0001,
+                  "< 0.0001",
+                  paste0(" = ", signif(p, 2))),
 
-              ")"
-            )
-          })
-        ) %>%
+                ")"
+              )
+            })
+          ) %>%
+          dplyr::mutate(
+            y = var_exp_to_y_pos_trans[var_exp]
+          )
+      }) %>%
         dplyr::mutate(
-          y = var_exp_to_y_pos_trans[var_exp]
+          row = seq_len(dplyr::n())
         )
-    }) %>%
-      dplyr::mutate(
-        row = seq_len(dplyr::n())
-      )
 
-    tip_len <- 0.03
-    range_upper_bound <- 101.5 # was 102
-    p_test <- p_est +
-      ggsignif::geom_signif(
-        data = p_tbl,
-        mapping = aes(xmin = xmin, xmax = xmax,
-                      y_position  = y, annotations = p_txt,
-                      group = row),
-        manual = TRUE, vjust = -0.2,
-        textsize = 2.75,
-        tip_length = tip_len
-      ) +
-      ggsignif::geom_signif(
-        data = p_tbl,
-        mapping = aes(xmin = xmin, xmax = xmax,
-                      y_position  = y, annotations = q_txt,
-                      group = row),
-        manual = TRUE, vjust = -1.54,
-        textsize = 2.75,
-        tip_length = tip_len
-      ) +
-      expand_limits(y = range_upper_bound)
+      tip_len <- 0.03
+      range_upper_bound <- 143 # was 101.5 # was 102
+      p_test <- p_est +
+        ggsignif::geom_signif(
+          data = p_tbl,
+          mapping = aes(xmin = xmin, xmax = xmax,
+                        y_position  = y, annotations = p_txt,
+                        group = row),
+          manual = TRUE, vjust = -1.54,
+          textsize = 2.75,
+          tip_length = tip_len
+        ) +
+        ggsignif::geom_signif(
+          data = p_tbl,
+          mapping = aes(xmin = xmin, xmax = xmax,
+                        y_position  = y, annotations = q_txt,
+                        group = row),
+          manual = TRUE, vjust = -0.2,
+          textsize = 2.75,
+          tip_length = tip_len
+        ) +
+        expand_limits(y = range_upper_bound)
+    } else {
+      p_test <- p_est +
+        scale_y_continuous(trans = "identity")
+    }
+
 
 
     # fine-tune
@@ -347,6 +364,9 @@ get_fig_6_sub_plots <- function() {
     )
     break_vec <- seq(-break_outer, break_outer)
 
+    orig_to_adj_x <- c("4.5" = 4.5,
+                       "8.5" = 9,
+                       "12.5" = 13.15)
     p_diff <- ggplot(data = diff_tbl_pop,
                      mapping = aes(x = x_order_num,
                                    shape = var_exp,
@@ -355,7 +375,8 @@ get_fig_6_sub_plots <- function() {
       cowplot::background_grid(major = "y") +
       geom_line(
         data = vline_tbl %>%
-          dplyr::mutate(y = rep(c(break_vec[1], break_vec[length(break_vec)]), 3)),
+          dplyr::mutate(y = rep(c(break_vec[1], break_vec[length(break_vec)]), 3),
+                        x = orig_to_adj_x[as.character(x)]),
         aes(x = x, y = y, grp = grp),
         linetype = "dotted",
         inherit.aes = FALSE,
@@ -396,7 +417,7 @@ get_fig_6_sub_plots <- function() {
     # Marker expression
     # ======================
 
-    plot_tbl_marker <- pop_sub_grp_to_x_order_and_num %>%
+    plot_tbl_marker <- pop_sub_grp_to_x_order_inc_num %>%
       dplyr::mutate(
         CCR7 = ifelse(grepl("CCR7\\+", pop_sub), "+", "-"),
         CD45RA = ifelse(grepl("CD45RA\\+", pop_sub), "+", "-"),
@@ -406,16 +427,26 @@ get_fig_6_sub_plots <- function() {
         names_to = "marker",
         values_to = "lvl"
       )
+    plot_tbl_marker <- plot_tbl_marker %>%
+      dplyr::group_by(pop_sub, marker, lvl) %>%
+      dplyr::summarise(x_order_num = mean(x_order_num),
+                       .groups = "drop")
+
     p_marker <- ggplot(plot_tbl_marker,
-           aes(x = x_order_num, y = marker, fill = lvl), alpha = 0.8) +
+           aes(x = x_order_num, y = marker, fill = lvl)) +
       cowplot::theme_cowplot() +
       theme(axis.ticks.x = element_blank(),
             axis.text.x = element_blank(),
             axis.line.y = element_blank()) +
       geom_tile() +
+      geom_text(aes(label = lvl)) +
       scale_fill_manual(
         values = c("-" = "white",
-                   "+" = "gold3")
+                   "+" = "white") # cornsilk1/2 looks all right
+      ) +
+      scale_colour_manual(
+        values = c("-" = "white",
+                   "+" = "white") # was gold3
       ) +
       guides("fill" = "none") +
       theme(axis.title = element_blank()) +

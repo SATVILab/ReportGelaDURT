@@ -525,16 +525,15 @@ for(i in 1:4) {
       x = p_grp_width - nudge_width_marker
     )
 }
-
-path_test <- file.path(tempdir(), "p_test.pdf")
+path_fig_grp <- file.path(dir_fig_manu, "fig_6-grp.pdf")
 cowplot::ggsave2(
-  path_test, 
+  path_fig_grp, 
   p_out, 
   height = 29.4 * 0.9, 
   width = 19, 
   units = "cm"
 )
-od(path_test)
+#od(path_test)
 
 # Plot legend
 # =====================
@@ -547,7 +546,7 @@ grp_to_col = c(
   "day_365" = "#33a02c"
 )
 grp_to_x <- setNames(
-  rep(c(0, 0.225), each = 2) + 0.225,
+  rep(c(0, 0.25), each = 2) + 0.125, # was 0.225
   names(grp_to_col)
 )
 grp_to_y <- setNames(
@@ -585,16 +584,17 @@ var_exp_to_fill <- c(
   "adult_bcg" = "#d95f02"
 )
 var_exp_to_y <- setNames(
-  rev(c(0.2, 0.4, 0.6)), 
+  rev(c(0.2, 0.4, 0.6)) - 0.1, 
   names(var_exp_to_fill)
 )
 var_exp_to_x <- setNames(
-  rep(0.9, 3), 
+  rep(0.725, 3), 
   names(var_exp_to_fill)
 )
 var_exp_to_lab <- setNames(
-  c("BCG: infant", "BCG: adult", 
-    "Adult"),
+  c("BCG: infant",
+    "BCG: adult", 
+    "Adult vs infant: BCG-vacc."),
   names(var_exp_to_fill)
 )
 plot_tbl_legend_diff <- purrr::map_df(rev(unique(names(var_exp_to_x))), function(var_exp) {
@@ -616,6 +616,28 @@ p_legend <- ggplot() +
     size = 3
   ) +
   geom_text(
+    data = tibble::tibble(
+      x = 0.42, 
+      y = 0.9, 
+      lbl = "Phenotype, age and BCG status"
+    ), 
+    aes(x = x, y = y, label = lbl), 
+    hjust = 0.5, 
+    vjust = 0, 
+    size = 4.21 
+  ) +
+  geom_text(
+    data = tibble::tibble(
+      x = 0.94375, 
+      y = 0.7, 
+      lbl = "Phenotype and\neffect type"
+    ), 
+    aes(x = x, y = y, label = lbl), 
+    hjust = 0.5, 
+    vjust = 0, 
+    size = 4.21 
+  ) +
+  geom_text(
     data = plot_tbl_legend_grp, 
     aes(x = x, y = y - 0.05, label = lbl), 
     hjust = 0, 
@@ -624,13 +646,13 @@ p_legend <- ggplot() +
   ) +
   geom_point(
     data = plot_tbl_legend_diff, 
-    aes(x = x - 0.0175, y = y, fill = var_exp, 
+    aes(x = x + 0.0075, y = y, fill = var_exp, 
         shape = var_exp), 
     size = 3
   ) +
   geom_text(
     data = plot_tbl_legend_diff, 
-    aes(x = x, y = y - 0.05, label = lbl), 
+    aes(x = x + 0.025, y = y - 0.05, label = lbl), 
     hjust = 0, 
     vjust = 0, 
     size = 4.25 
@@ -649,8 +671,8 @@ p_legend <- ggplot() +
          "fill" = "none", 
          "shape" = "none") 
 
-plot_frac <- 0.925
-plot_legend_add_height <- 0.05
+plot_frac <- 0.89
+plot_legend_add_height <- 0
 p_test_full <- cowplot::ggdraw() + 
   cowplot::draw_plot(
     plot = p_out, 
@@ -664,14 +686,14 @@ p_test_full <- cowplot::ggdraw() +
     width = 1, 
     height = 1 - plot_frac + plot_legend_add_height
   )
-path_test_full <- file.path(tempdir(), "p_test_full.pdf")
+path_fig <- file.path(dir_fig_manu, "fig_6.pdf")
 cowplot::ggsave2(
-  path_test_full, 
+  path_fig, 
   p_test_full, 
   height = 29.4, 
   width = 19, 
   units = "cm"
 )
 
-od(path_test_full)
+od(path_fig)
 ```
