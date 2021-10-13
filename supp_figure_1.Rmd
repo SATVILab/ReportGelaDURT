@@ -1,55 +1,246 @@
-# Supplementary Figure 1
-
-## Relevant criticisms
-
-- 3.8
-  - No formal statistical analysis done
-
-## Proposed approach
-
-- Same as for figure 4
-
-## Relevant criticisms
-
-## Proposed approach
-
-## Data exploration
+# Supplementary Figure 2
 
 ```{r }
-data_tidy_mem <- DataTidyGelaDURT::data_tidy_mem %>%
-  tibble::as_tibble()
-
-data_mod_mem <- data_tidy_mem %>%
-  dplyr::filter(age == "adult") %>% 
-  dplyr::select(-age) %>%
-  dplyr::left_join(
-    data_tidy_clin_adult %>%
-      dplyr::select(-c(age_in_years:ppd)), 
-    by = "pid"
-  ) %>%
-  dplyr::rename(days = grp) %>%
-  dplyr::mutate(
-  days = factor(
-    days, 
-    levels = as.character(c(0, 21, 35, 365))
-  ), 
-  pop = factor(pop, 
-               levels = c(
-                 "cd4",
-                 "mait", 
-                 "nkt",
-                 "gd"
-               ))
-  ) %>%
-  dplyr::mutate(
-    day_type = ifelse(days == "0", "pre_bcg", "post_bcg")
-  ) %>%
-  dplyr::mutate(
-    race = factor(race, 
-              levels = c("non_black", "black")), 
-    sex = factor(
-      sex, 
-      levels = c("female", "male")
-    )
-  )
+n_sample <- 1e3
+std_effect <- 1
+mean_null <- 0
+mean_alt <- std_effect
+cutoff_vec <- c(0.05, 0.01, 0.005)
+sample_size <- 25
+dbn_vec <- c("normal", "beta", "gamma")
+std_effect_vec <- c(0.1, 0.5, 1, 2, 3, 5)
+cutoff_vec <- c(0.05, 0.01, 0.005)
+gamma_shape <- 2
+beta_shape2 <- 5
 ```
+
+```{r }
+power_tbl <- purrr::map_df(dbn_vec, function(dbn) {
+  purrr::map_df(std_effect_vec, function(std_effect) {
+    par_null <- switch(
+      dbn,
+      "normal" = 0,
+      "beta" = 2,
+      "gamma" = 2
+    )
+    sample_from_null <- switch(
+      dbn,
+      "normal" = {
+        function() rnorm(sample_size, mean = par_null)
+      },
+      "beta" = {
+        function() rbeta(sample_size, shape1 = par_null, shape2 = beta_shape2)
+      },
+      "gamma" = {
+        function() rgamma(sample_size, shape = gamma_shape, scale = par_null)
+      }
+    )
+    par_alt <- switch(
+      dbn,
+      "normal" = std_effect,
+      "beta" = {
+        var_beta <- function(a, b = beta_shape2) {
+          a * b / (a + b)^2 / (a + b + 1)
+        }
+        mean_beta <- function(a, b = beta_shape2) {
+          a / (a + b)
+        }
+        optim(
+          par = 6,
+          fn = function(x) {
+            ((mean_beta(a = x) -
+               mean_beta(a = par_null))^2 -
+               (std_effect * sqrt(mean(
+                 var_beta(a = x),
+                 var_beta(a = par_null))^2
+               )))^2
+          },
+          method = "L-BFGS-B",
+          lower = 1e-6
+        )$par
+      },
+      "gamma" = {
+        mean_gamma <- function(k = gamma_shape, theta) {
+          k * theta
+        }
+        var_gamma <- function(k = gamma_shape, theta) {
+          k * theta^2
+        }
+        scale <- optim(
+          par = 2,
+          fn = function(x) {
+            ((mean_gamma(theta = x) -
+               mean_gamma(theta = par_null))^2 -
+               (std_effect * sqrt(mean(
+                 var_gamma(theta = x),
+                 var_gamma(theta = par_null))^2
+               )))^2
+          },
+          method = "L-BFGS-B",
+          lower = 0
+        )$par
+      }
+    )
+    sample_from_alt <- switch(
+      dbn,
+      "normal" = {
+        function() rnorm(sample_size, mean = par_alt)
+        },
+      "beta" = {
+        function() rbeta(sample_size, shape1 = par_alt, shape2 = beta_shape2)
+      },
+      "gamma" = {
+        function() rgamma(sample_size, shape = gamma_shape, scale = par_alt)
+      }
+    )
+    p_vec <- purrr::map_dbl(1:n_sample, function(i) {
+      wilcox.test(
+        sample_from_null(),
+        sample_from_alt()
+      )$p.value
+    })
+    power_vec <- purrr::map_dbl(cutoff_vec, function(cutoff) {
+      sum(p_vec < cutoff) / n_sample
+    })
+    tibble::tibble(
+      dbn = dbn,
+      std_effect = std_effect,
+      par_null = par_null,
+      par_alt = par_alt,
+      cutoff = cutoff_vec,
+      power = power_vec
+    )
+  })
+})
+```
+
+
+```{r }
+
+chr_to_num_cutoff <- c(
+  "0.005" = 3,
+  "0.01" = 2,
+  "0.05" = 1
+)
+colour_vec <- RColorBrewer::brewer.pal(7, name = "RdYlBu")
+plot_tbl_power <- power_tbl %>%
+  dplyr::mutate(dbn_eff= paste0(dbn, "_", std_effect),
+                cutoff_num = chr_to_num_cutoff[
+                  as.character(cutoff)])
+p_power <- ggplot(plot_tbl_power %>%
+                    dplyr::mutate(
+                      power = power * 1e2,
+                      power = round(power)
+                    ),
+       aes(x = cutoff_num, y = dbn_eff, fill = power)) +
+  cowplot::theme_cowplot() +
+  geom_tile() +
+  geom_text(aes(label = signif(power, 2))) +
+  scale_fill_gradientn(
+    colours = colour_vec,
+    name = "Power"
+  ) +
+  scale_x_continuous(
+    breaks = c(1, 2, 3),
+    labels = c(0.05, 0.01, 0.005)
+  ) +
+  scale_y_discrete(
+    breaks = unique(plot_tbl_power$dbn_eff),
+    labels = purrr::map_chr(unique(plot_tbl_power$dbn_eff), function(x) {
+      elem_vec <- stringr::str_split(x, "_")[[1]]
+      paste0(stringr::str_to_title(elem_vec[1]),
+             " (", elem_vec[2], ")")
+    })
+  ) +
+  labs(x = "Statistical significance threshold",
+       y = "Distribution (standardised effect size)")
+```
+
+```{r }
+plot_tbl <- purrr::map_df(dbn_vec, function(dbn) {
+  par_vec <- c(
+    switch(
+      dbn,
+      "normal" = 0,
+      "beta" = 2,
+      "gamma" = 2
+    ),
+    unique(power_tbl$par_alt[power_tbl$dbn == dbn]))
+  std_effect_vec <- power_tbl %>%
+    dplyr::filter(dbn == .env$dbn) %>%
+    dplyr::pull(std_effect) %>%
+    unique() %>%
+    sort()
+  std_effect_vec <- c(0, std_effect_vec)
+  x_vec <- switch(
+    dbn,
+    "beta" = seq(0.025, 0.999, length.out = 1e3),
+    "gamma" = seq(0.05, 5, length.out = 1e3),
+    "normal" = seq(-3, 10, length.out = 1e3)
+  )
+  purrr::map_df(seq_along(par_vec), function(i) {
+    par_alt <- par_vec[i]
+    std_effect <- std_effect_vec[i]
+    tibble::tibble(
+      dbn = dbn,
+      null = ifelse(std_effect == 0, "null", "alt"),
+      std_effect = std_effect,
+      par_alt = par_alt,
+      x = x_vec,
+      y = switch(
+        dbn[1],
+        "normal" = dnorm(x = x_vec, mean = par_alt),
+        "beta" = dbeta(x = x_vec, shape1 = par_alt, shape2 = 5),
+        "gamma" = dgamma(x = x_vec, shape = gamma_shape, scale = par_alt)
+      )
+    ) %>%
+      dplyr::mutate(par_alt = as.character(par_alt))
+  })
+})
+
+col_vec <- c(
+  "black",
+  RColorBrewer::brewer.pal(
+    n = length(unique(plot_tbl$std_effect)) + 2,
+    name = "Reds"
+  )[-c(1:2)]
+)
+p_dbn <- ggplot(plot_tbl %>%
+                  dplyr::mutate(dbn = stringr::str_to_title(dbn)) %>%
+                  dplyr::mutate(
+                    dbn = factor(
+                      dbn,
+                      levels = c("Normal", "Beta", "Gamma")
+                    )
+                  ),
+                aes(x = x, y = y,
+                              col = as.character(std_effect))) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "x") +
+  geom_line() +
+  facet_wrap(~dbn, scales = "free") +
+  scale_colour_manual(values = col_vec,
+                      name = "Standardised\neffect size") +
+  labs(x = "Observation", y = "Density") +
+  #theme(legend.position = "bottom") +
+  theme(strip.background = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.6))
+```
+
+```{r }
+p_power_grid <- cowplot::plot_grid(p_power, p_dbn, ncol = 1,
+                   align = "v",
+                   axis = "lr",
+                   rel_heights = c(1.5, 1))
+path_fig <- file.path(dir_fig_manu, "supp_fig_2.pdf")
+cowplot::ggsave2(
+  path_fig,
+  p_power_grid,
+  height = 29.4 * 2/3,
+  width = 19,
+  units = "cm"
+)
+
+od(path_fig)
+```
+
