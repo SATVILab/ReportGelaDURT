@@ -241,12 +241,12 @@ results_tbl_fig4_std <- purrr::map_df(pop_vec, function(pop) {
       
       # overall p-value
       fit_large_overall <- glmmTMB::glmmTMB(
-         hladr ~ 1 + days + sex + race, 
+         hladr ~ 1 + days + sex + race + (1|pid), 
         data = data_mod_mm, 
         family = mod_family
       )
       fit_small_overall <- glmmTMB::glmmTMB(
-         hladr ~ 1 + sex + race, 
+         hladr ~ 1 + sex + race + (1|pid), 
         data = data_mod_mm, 
         family = mod_family
       )
