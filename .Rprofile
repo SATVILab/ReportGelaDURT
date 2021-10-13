@@ -30,6 +30,12 @@ if (interactive()) {
     "weight" = "Weight (kg)",
     "ppd" = "PPD (mm)"
   )
+  age_to_shape <- c(
+    "infant" = "triangle",
+    "adult" = "diamond",
+    "Infant" = "triangle",
+    "Adult" = "diamond"
+  )
   short_to_display_bcg <- c(
     "bcg" = "BCG",
     "no bcg" = "No BCG",
@@ -44,15 +50,15 @@ if (interactive()) {
   )
 
   bcg_to_col <- c(
-    "no bcg" = "red",
-    "bcg" = "dodgerblue"
+    "no bcg" = "dodgerblue",
+    "bcg" = "red"
   )
   trt_to_col <- c(
-    "No BCG" = "red",
-    "BCG" = "dodgerblue",
-    "Before" = "red",
-    "After" = "dodgerblue",
-    "cd4_ifng" = "dodgerblue",
+    "No BCG" = "dodgerblue",
+    "BCG" = "red",
+    "Before" = "dodgerblue",
+    "After" = "red",
+    "cd4_ifng" = "red",
     "IFNg+CD4+" = "#fdae61"
   )
   short_to_display_age <- c("infant" = "Infant", "adult" = "Adult",
