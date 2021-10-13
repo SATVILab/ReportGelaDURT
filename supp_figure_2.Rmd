@@ -1,0 +1,471 @@
+# Supplementary Figure 2
+
+## Relevant criticisms
+
+- 3.8
+  - No formal statistical analysis done
+
+## Proposed approach
+
+- Similar to figure 6 graphically, but tests the same as figure 4
+
+## Proposed approach
+
+## Data exploration
+
+```{r }
+data_raw_fig2s <- DataTidyGelaDURT::data_tidy_mem %>%
+  dplyr::filter(age == "adult") %>%
+  dplyr::mutate(
+    grp = ifelse(age == "adult", paste0("day_", grp), grp)
+  ) 
+  
+pop_vec <- c("mait", "nkt", "gd", "cd4")
+pop_sub_vec <- c(
+  "CD45RA+CCR7+", "CD45RA-CCR7+", "CD45RA-CCR7-", "CD45RA+CCR7-" 
+)
+data_raw_fig2s <- data_raw_fig2s %>%
+  dplyr::mutate(
+    pop = factor(
+      pop, 
+      levels = pop_vec
+    ), 
+    pop_sub = factor(
+      pop_sub, 
+      levels = pop_sub_vec
+    )
+  ) %>%
+  dplyr::mutate(
+    grp = factor(
+      grp, 
+      levels = c(
+        "day_0", 
+        "day_21",
+        "day_35", 
+        "day_365"
+      )
+    )
+  )
+
+data_tidy_clin <- data_tidy_clin_adult %>%
+  dplyr::select(pid, race, sex)
+
+data_tidy_fig2s <- data_raw_fig2s %>%
+  dplyr::left_join(
+    data_tidy_clin, 
+    by = "pid"
+  ) %>%
+  dplyr::mutate(
+    race = factor(race, 
+              levels = c("non_black", "black")), 
+    sex = factor(
+      sex, 
+      levels = c("female", "male")
+    )
+  )
+
+data_tidy_fig2s <- data_tidy_fig2s %>%
+  dplyr::mutate(
+    x_order = paste0(pop_sub, "_", grp)
+  ) %>%
+  dplyr::arrange(
+    pop, pop_sub, grp
+  )
+
+chr_to_num_x_order <- setNames(
+  seq_along(unique(data_tidy_fig2s$x_order)), 
+  unique(data_tidy_fig2s$x_order)
+)
+data_tidy_fig2s <- data_tidy_fig2s %>%
+  dplyr::mutate(
+    x_order_num = chr_to_num_x_order[x_order]
+  ) %>%
+  dplyr::mutate(
+    pop_x_order = paste0(pop, "_", x_order), 
+    pop_pop_sub = paste0(pop, "_", pop_sub)
+  )
+x_order_vec <- unique(data_tidy_fig2s$x_order)
+pop_x_order_vec <- unique(data_tidy_fig2s$pop_x_order)
+pop_pop_sub_vec <- unique(data_tidy_fig2s$pop_pop_sub)
+
+pop_sub_grp_to_x_order_inc_num <- data_tidy_fig2s %>%
+  dplyr::group_by(pop_sub, grp, x_order) %>%
+  dplyr::slice(1) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(pop_sub, grp, x_order, x_order_num) %>%
+  dplyr::mutate(x_order = factor(
+    x_order, 
+    levels = x_order
+  ))
+```
+
+```{r }
+pop_to_lab_mem <- c(
+  "mait" = bquote(paste(plain(paste("MAIT cells (%)")))), 
+  "nkt" = bquote(paste(plain(paste("NKT cells (%)")))),
+  "cd1b" = bquote(paste(plain(paste("CD1b-GMM+ T cells (%)")))),
+  "gem" = bquote(paste(plain(paste("GEM T cells (%)")))),
+  "gd" = bquote(paste(gamma, delta, plain(paste("TCR+ cells (%)")))), 
+  "cd4" = bquote(paste(plain(paste("CD4+ T cells (%)")))), 
+  "cd4_ifng" = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD4+ T cells (%)"))))
+)
+
+pop_to_lab_mem_diff <- c(
+  "mait" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "nkt" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "cd1b" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gem" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gd" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta))
+)
+```
+
+### Identity transformation
+
+```{r }
+p <- ggplot(
+  data_tidy_fig2s %>%
+    dplyr::mutate(
+      grp = factor(
+        grp, 
+        levels = c("no bcg", "bcg", "day_0", "day_365")
+      )
+    ), 
+  aes(x = x_order, fill = pop_sub)
+) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "xy") +
+  geom_boxplot(aes(y = freq)) +
+  facet_wrap(~pop, ncol = 4) +
+  theme(axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank()) +
+  scale_x_discrete(
+    breaks = x_order_vec, 
+    limits = x_order_vec
+  )
+for (x in unique(data_tidy_fig2s$x_order)) {
+  p <- p + 
+    ggforce::geom_sina(aes(y = freq, shape = grp), maxwidth = 0.75, 
+                       scale = "width", 
+                       data = data_tidy_fig2s %>%
+                         dplyr::filter(x_order == x))
+}
+p 
+```
+
+### Square root transformation
+
+```{r }
+p +
+  scale_y_sqrt()
+```
+
+It generally seems that the square root transformation makes the data nicer to work with, as long as the median response is less than 0.75. Above that the identity transformation using the beta distribution may work better, especially for those capped at 100. In that case, the frequencies should be divided by 100 to work with proportions instead. 
+
+## Analysis
+
+### Calculation
+
+```{r }
+pop_pop_sub_to_trans_obj_tbl <- data_tidy_fig2s %>%
+  dplyr::group_by(pop_pop_sub, grp) %>%
+  dplyr::summarise(med = median(freq, na.rm = TRUE),
+                   .groups = "drop_last"
+                   ) %>%
+  dplyr::summarise(trans = list(switch(
+    as.character(any(med > 0.5)), 
+    "TRUE" = scales::identity_trans(), 
+    "FALSE" = scales::sqrt_trans()
+  )))
+pop_pop_sub_to_trans_obj <- pop_pop_sub_to_trans_obj_tbl$trans %>%
+  setNames(pop_pop_sub_to_trans_obj_tbl$pop_pop_sub)
+```
+
+```{r }
+pop_pop_sub <- pop_pop_sub_vec[1]
+results_list_fig2s <- purrr::map(pop_pop_sub_vec, function(pop_pop_sub) {
+  data_tidy_mod <- data_tidy_fig2s %>%
+    dplyr::filter(pop_pop_sub == .env$pop_pop_sub) 
+  
+  trans_obj <- pop_pop_sub_to_trans_obj[[pop_pop_sub]]
+  
+  data_tidy_mod_est_ci <- data_tidy_mod %>%
+    dplyr::mutate(prop = freq / 1e2) %>%
+    dplyr::mutate(prop = trans_obj$transform(prop))
+  
+  # =======================
+  # get estimates and ci
+  # =======================
+
+  grp_vec <- unique(data_tidy_mod$grp) %>%
+    as.character()
+  grp <- grp_vec[1] 
+  est_ci_tbl <- purrr::map_df(grp_vec, function(grp) {
+    print(grp)
+    data_tidy_mod_est_ci_grp <- data_tidy_mod_est_ci %>%
+      dplyr::mutate(
+        grp = factor(
+          grp, 
+          levels = c(
+            .env$grp, 
+            setdiff(grp_vec, .env$grp)
+          )
+        )
+      )
+    
+    # calculate unadjusted eff and ci
+    fit_large <- try(quantreg::rq(
+      freq ~ 1 + grp, 
+      tau = 0.5,
+      data = data_tidy_mod_est_ci_grp
+    ), silent = TRUE)
+    mod_summ <- summary(fit_large, se = "rank")
+
+    coef_tbl <- coefficients(mod_summ)
+    coef_vec <- coef_tbl[1, c("lower bd", "upper bd")] %>%
+      as.vector()
+    coef_est <- coef_tbl[1, "coefficients"]
+    
+    tibble::tibble(
+      pop = data_tidy_mod_est_ci_grp$pop[[1]],
+      pop_sub = gsub("\\w+_", "", pop_pop_sub), 
+      grp = grp, 
+      est = coef_est,
+      lb = coef_vec[1], 
+      ub = coef_vec[2]
+      ) %>%
+      dplyr::mutate(
+        est = trans_obj$inverse(est), 
+        lb = trans_obj$inverse(lb), 
+        ub = trans_obj$inverse(ub)
+      )
+    })
+  
+  # =======================
+  # get diff est, ci and p-value
+  # =======================
+  
+  shift_within_01 <- function(x) {
+      range_x <- range(x)
+      diff_x <- diff(range_x)
+      # now (not strictly) within 0,1
+      x <- (x - range_x[1])/diff_x
+      # strictly within 01:
+      small_diff <- diff_x * 0.005
+      pmax(small_diff, pmin(x, range_x[2] - small_diff))
+  }
+  
+  data_tidy_mod_diff <- data_tidy_mod %>%
+    dplyr::filter(!is.na(freq)) %>%
+    dplyr::mutate(prop = freq / 1e2) %>%
+    dplyr::mutate(prop = shift_within_01(prop))
+  
+  # overall p-value
+  fit_large_overall <- glmmTMB::glmmTMB(
+     prop ~ 1 + grp + sex + race + (1|pid), 
+    data = data_tidy_mod_diff, 
+    family = glmmTMB::beta_family()
+  )
+  fit_small_overall <- glmmTMB::glmmTMB(
+    prop ~ 1 + sex + race + (1|pid), 
+    data = data_tidy_mod_diff, 
+    family = glmmTMB::beta_family()
+  )
+  diff_p_overall_mm <- modutils:::.test_lr(
+    mod_large = fit_large_overall, 
+    mod_small = fit_small_overall
+  )$p
+  
+  diff_tbl <- tibble::tibble(
+    pop =  gsub("_\\w*", "", pop_pop_sub),
+    pop_sub = gsub("\\w+_", "", pop_pop_sub), 
+    diff_p = diff_p_overall_mm
+    ) %>%
+    dplyr::mutate(
+      pop =  gsub("\\+\\w*|\\-\\w*", "", pop)
+    )
+  
+  list("est_ci_tbl" = est_ci_tbl, 
+       "diff_tbl" = diff_tbl)
+})
+
+results_tbl_fig2s_est_ci <- purrr::map_df(results_list_fig2s, function(x) x$est_ci_tbl) %>%
+  dplyr::mutate(pop = as.character(pop))
+results_tbl_fig2s_diff <- purrr::map_df(results_list_fig2s, function(x) x$diff_tbl) %>%
+  dplyr::mutate(diff_p_bonf = p.adjust(diff_p, method = "bonferroni")) 
+```
+
+### Results
+
+#### Effect of BCG in infants
+
+Clear effect for TCRgd T cells. 
+
+```{r }
+results_tbl_fig2s_diff %>%
+  dplyr::select(pop, pop_sub, diff_p, diff_p_bonf) %>%
+  dplyr::arrange(diff_p)
+```
+
+### Plots
+
+```{r }
+pop_to_lab_mem <- c(
+  "mait" = bquote(paste(plain(paste("MAIT cells (%)")))), 
+  "nkt" = bquote(paste(plain(paste("NKT cells (%)")))),
+  "cd1b" = bquote(paste(plain(paste("CD1b-GMM T cells (%)")))),
+  "gd" = bquote(paste(gamma, delta, plain(paste(" T cells (%)")))),                     
+  "cd4" = bquote(paste(plain(paste("CD4+ T cells (%)"))))
+)
+
+pop_to_lab_mem_diff <- c(
+  "mait" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "nkt" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "cd1b" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gem" = bquote(paste(plain(paste("Standardised ")), Delta)),
+  "gd" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4" = bquote(paste(plain(paste("Standardised ")), Delta)), 
+  "cd4_ifng" = bquote(paste(plain(paste("Standardised ")), Delta))
+)
+```
+
+```{r }
+plot_list_fig2s <- get_fig_2s_sub_plots()
+p_grp_width <- 1
+nudge_width_marker <- - 0.05
+prop_upper_plot <- 0.85
+stretch_height_lower_plot <- 1.67
+p_out <- cowplot::ggdraw()
+for(i in 1:4) {
+  y_base <- 1 - 0.25 * i
+  p_out <- p_out + 
+    cowplot::draw_plot(
+      plot = plot_list_fig2s[[i]]$p_grp, 
+      width = p_grp_width, 
+      height = 1/4 * prop_upper_plot, 
+      y = 1/4 * (1 - prop_upper_plot) + y_base
+    ) +
+    cowplot::draw_plot(
+      plot = plot_list_fig2s[[i]]$p_diff, 
+      width = 1 - p_grp_width,
+      x = p_grp_width,
+      height = 1/4 * prop_upper_plot, 
+      y = 1/4 * (1 - prop_upper_plot) + y_base
+    )  +
+    cowplot::draw_plot(
+      plot = plot_list_fig2s[[i]]$p_marker, 
+      y = y_base, 
+      height = (1/4 * (1 - prop_upper_plot)) * stretch_height_lower_plot, 
+      width = p_grp_width, 
+      x = 0
+    ) 
+}
+path_fig_grp <- file.path(dir_fig_manu, "fig_2s-grp.pdf")
+cowplot::ggsave2(
+  path_fig_grp, 
+  p_out, 
+  height = 29.4 * 0.9, 
+  width = 19 * 0.75, 
+  units = "cm"
+)
+od(path_fig_grp)
+
+# Plot legend
+# =====================
+
+
+color_vec <- c(
+  RColorBrewer::brewer.pal(
+    9,
+    "Reds"
+    )[c(5, 7:9)])
+
+grp_to_col <- setNames(
+  color_vec,
+  data_raw_pop$grp %>% unique() %>% as.character()
+)
+
+grp_to_x <- setNames(
+  0.31 + seq(0, 0.4, length.out = 4),
+  names(grp_to_col)
+)
+grp_to_y <- setNames(
+  rep(0.25, 4),
+  names(grp_to_col)
+)
+grp_to_lab <- setNames(
+  c("Day 0",
+    "Day 21", 
+    "Day 35", 
+    "Day 365"),
+  names(grp_to_y)
+)
+plot_tbl_legend_grp <- purrr::map_df(unique(names(grp_to_col)), function(grp) {
+  tibble::tibble(
+    grp = grp, 
+    x = grp_to_x[grp], 
+    y = grp_to_y[grp], 
+    lbl = grp_to_lab[grp]
+  )
+})
+p_legend <- ggplot() + 
+  theme_void() + 
+  geom_point(
+    data = plot_tbl_legend_grp, 
+    aes(x = x - 0.0175, y = y, col = grp), 
+    size = 3, 
+    alpha = 0.5
+  ) +
+  geom_text(
+    data = tibble::tibble(
+      x = 0.55, 
+      y = 0.7, 
+      lbl = "Phenotype and days since BCG re-vaccination"
+    ), 
+    aes(x = x, y = y, label = lbl), 
+    hjust = 0.5, 
+    vjust = 0, 
+    size = 4.21 
+  ) +
+  geom_text(
+    data = plot_tbl_legend_grp, 
+    aes(x = x, y = y, label = lbl), 
+    hjust = 0, 
+    vjust = 0.5, 
+    size = 4.25 
+  ) +
+  scale_colour_manual(
+    values = grp_to_col
+  ) +
+  lims(x = c(0,1), y = c(0,1)) +
+  guides("alpha" = "none", "colour" = "none", 
+         "fill" = "none", 
+         "shape" = "none") 
+
+plot_frac <- 0.95
+plot_legend_add_height <- 0
+p_test_full <- cowplot::ggdraw() + 
+  cowplot::draw_plot(
+    plot = p_out, 
+    height = plot_frac, 
+    y = 1 - plot_frac
+  ) +
+  cowplot::draw_plot(
+    plot = p_legend, 
+    y = 0, 
+    x = 0, 
+    width = 1, 
+    height = 1 - plot_frac + plot_legend_add_height
+  )
+path_fig <- file.path(dir_fig_manu, "fig_2s.pdf")
+cowplot::ggsave2(
+  path_fig, 
+  p_test_full, 
+  height = 29.4, 
+  width = 19, 
+  units = "cm"
+)
+
+od(path_fig)
+```
