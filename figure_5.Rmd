@@ -1,0 +1,952 @@
+## Figure 5
+
+```{r }
+data_tidy_freq_ifng <- DataTidyGelaDURT::data_tidy_freq_ifng %>%
+  dplyr::rename(freq = freq_ifng) %>%
+  dplyr::mutate(
+    bcg = factor(
+      bcg, 
+      levels = c("no bcg", "bcg")
+    )
+  ) %>%
+  dplyr::left_join(
+    DataTidyGelaDURT::data_tidy_clin_infant %>%
+      dplyr::select(pid, bcg, race, sex), 
+    by = c("pid", "bcg")
+  )
+```
+
+```{r }
+scale_sqrt <- scales::trans_new(
+  name = "sqrt_alt", 
+  transform = base::sqrt, 
+  inverse = function(x) ifelse(x <= 0, 0, x^2), 
+  domain = c(0, Inf)
+)
+```
+
+```{r }
+plot_tbl_5b <- data_tidy_freq_ifng %>%
+  dplyr::filter(pop == "gd") %>%
+  dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0))
+
+data_mod_5b <- data_tidy_freq_ifng %>%
+  dplyr::filter(pop == "gd") %>%
+  dplyr::mutate(freq = sqrt(freq))
+
+# compute p-value
+fit_large <- try(quantreg::rq(
+  freq ~ 1 + bcg + race + sex, 
+  tau = 0.5,
+  data = data_mod_5b
+), silent = TRUE)
+fit_small <- try(quantreg::rq(
+  freq ~ 1  + race + sex, 
+  tau = 0.5,
+  data = data_mod_5b
+), silent = TRUE)
+anova_fit <- anova(fit_large, fit_small)
+p <- anova_fit$table$pvalue
+
+# compute estimate and ci
+est_ci_tbl <- purrr::map_df(c("no bcg", "bcg"), function(x) {
+  data_mod_5b_grp <- data_mod_5b %>%
+    dplyr::mutate(
+      bcg = factor(
+        bcg, 
+        levels = c(
+          x, 
+          setdiff(unique(data_mod_5b$bcg), x)
+        )
+      )
+    )
+  fit_est_ci <- try(quantreg::rq(
+    freq ~ 1 + bcg, 
+    tau = 0.5,
+    data = data_mod_5b_grp
+  ), silent = TRUE)
+  
+  mod_summ <- summary(fit_est_ci)
+  coef_tbl <- coefficients(mod_summ) 
+  coef_vec <- (coef_tbl[1, c("lower bd", "upper bd")] %>%
+      as.vector())^2
+  coef_est <- (coef_tbl[1, "coefficients"])^2
+  tibble::tibble(
+    bcg = x, 
+    est = coef_est, 
+    lb = coef_vec[1], 
+    ub = coef_vec[2]
+  )
+}) %>%
+  dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0))
+
+p_wc <- wilcox.test(
+  x = plot_tbl_5b$freq[plot_tbl_5b$bcg == "no bcg"],
+  y = plot_tbl_5b$freq[plot_tbl_5b$bcg == "bcg"]
+)$p.value
+
+p_5b <- ggplot(data = plot_tbl_5b, 
+               mapping = aes(x = x_order_num)) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  labs(y = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+ ")),
+                        gamma, delta, plain(paste("TCR+ cells (%)")))))
+
+for(x in c("bcg", "no bcg")) {
+  p_5b <- p_5b + 
+    ggforce::geom_sina(
+      data = plot_tbl_5b %>%
+        dplyr::filter(bcg == x), 
+      mapping = aes(
+        colour = bcg, 
+        y = freq
+      ), 
+      alpha = 0.5
+    )
+}
+
+p_5b <- p_5b + 
+  geom_point(
+    data = est_ci_tbl, 
+    aes(y = est)
+  ) +
+  geom_errorbar(
+    data = est_ci_tbl, 
+    aes(ymin = lb, ymax = ub), 
+    width = 0.25
+  )
+col_vec_bcg_infant <- RColorBrewer::brewer.pal(
+    9, "Blues")[c(5, 9)]
+bcg_to_col_infant <- setNames(
+  col_vec_bcg_infant, 
+  c("no bcg", "bcg")
+)
+break_vec_trans <- seq(
+  0, sqrt(max(plot_tbl_5b$freq)),
+  length.out = 5
+)
+break_vec <- break_vec_trans^2
+break_vec <- c(0, 0.3, 1.5, 3, 6)
+
+length_axis_orig_trans <- diff(sqrt(range(plot_tbl_5b$freq)))
+range_upper_bound_trans <- sqrt(max(plot_tbl_5b$freq)) + length_axis_orig_trans * 0.2
+range_upper_bound <- range_upper_bound_trans^2
+y_pos_trans <- sqrt(max(plot_tbl_5b$freq)) + length_axis_orig_trans * 0.02
+
+p_tbl <- tibble::tibble(p = p) %>%
+          dplyr::mutate(
+            xmin = 0,
+            xmax = 1
+          ) %>%
+          dplyr::mutate(
+            p_txt = purrr::map_chr(p, function(elem) {
+              paste0(
+                "p ",
+                ifelse(
+                  elem < 0.0001,
+                  "< 0.0001",
+                  paste0(" = ", signif(elem, 2)))
+              )
+            }),
+            diff_p_bonf = p * 2,
+            q_txt = purrr::map_chr(diff_p_bonf, function(p) {
+              paste0(
+                "(q ",
+                ifelse(
+                  p < 0.0001,
+                  "< 0.0001",
+                  paste0(" = ", signif(p, 2))),
+
+                ")"
+              )
+            })
+          ) %>%
+          dplyr::mutate(
+            y = y_pos_trans
+          )
+p_5b <- p_5b + 
+  scale_colour_manual(
+    values = bcg_to_col_infant
+  ) +
+  guides(colour = "none") +
+  scale_x_continuous(
+    breaks = 0:1, 
+    labels = c("No BCG", "BCG")
+  ) + 
+  geom_hline(
+    aes(yintercept = 0), 
+    colour = "gray85"
+  )  +
+  scale_y_continuous(
+    breaks = break_vec,
+    trans = scale_sqrt
+  ) + 
+  expand_limits(y = c(0, range_upper_bound)) +
+  ggsignif::geom_signif(
+    data = p_tbl,
+    mapping = aes(xmin = xmin, xmax = xmax,
+                  y_position  = y, annotations = p_txt),
+    manual = TRUE, vjust = -1.54,
+    textsize = 2.75,
+    tip_length = 0.03
+    ) +
+  ggsignif::geom_signif(
+    data = p_tbl,
+    mapping = aes(xmin = xmin, xmax = xmax,
+                  y_position  = y, annotations = q_txt),
+    manual = TRUE, vjust = -0.2,
+    textsize = 2.75,
+    tip_length = 0.03
+    ) +
+  theme(axis.title.x = element_blank())
+```
+
+```{r }
+plot_tbl_5d <- data_tidy_freq_ifng %>%
+  dplyr::filter(pop == "cd26_161") %>%
+  dplyr::filter(pop_sub == "-") %>%
+  dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0))
+
+data_mod_5d <- data_tidy_freq_ifng %>%
+  dplyr::filter(pop == "cd26_161") %>%
+  dplyr::filter(pop_sub == "-") %>%
+  dplyr::mutate(freq = sqrt(freq))
+
+# compute estimate and ci
+est_ci_tbl <- purrr::map_df(c("no bcg", "bcg"), function(x) {
+  data_mod_5d_grp <- data_mod_5d %>%
+    dplyr::mutate(
+      bcg = factor(
+        bcg, 
+        levels = c(
+          x, 
+          setdiff(unique(data_mod_5b$bcg), x)
+        )
+      )
+    )
+  fit_est_ci <- try(quantreg::rq(
+    freq ~ 1 + bcg, 
+    tau = 0.5,
+    data = data_mod_5d_grp
+  ), silent = TRUE)
+  
+  mod_summ <- summary(fit_est_ci)
+  coef_tbl <- coefficients(mod_summ) 
+  coef_vec <- (coef_tbl[1, c("lower bd", "upper bd")] %>%
+      as.vector())^2
+  coef_est <- (coef_tbl[1, "coefficients"])^2
+  tibble::tibble(
+    bcg = x, 
+    est = coef_est, 
+    lb = coef_vec[1], 
+    ub = coef_vec[2]
+  )
+}) %>%
+  dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0))
+
+# compute p-value
+fit_large <- try(quantreg::rq(
+  freq ~ 1 + bcg + race + sex, 
+  tau = 0.5,
+  data = data_mod_5d
+), silent = TRUE)
+fit_small <- try(quantreg::rq(
+  freq ~ 1  + race + sex, 
+  tau = 0.5,
+  data = data_mod_5d
+), silent = TRUE)
+anova_fit <- anova(fit_large, fit_small)
+p <- anova_fit$table$pvalue
+
+p_wc <- wilcox.test(
+  x = plot_tbl_5d$freq[plot_tbl_5d$bcg == "no bcg"],
+  y = plot_tbl_5d$freq[plot_tbl_5d$bcg == "bcg"]
+)$p.value
+
+p_5d <- ggplot(data = plot_tbl_5d, 
+               mapping = aes(x = x_order_num)) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  labs(y = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD3+CD26+CD161+")))))
+
+for(x in c("bcg", "no bcg")) {
+  p_5d <- p_5d + 
+    ggforce::geom_sina(
+      data = plot_tbl_5d %>%
+        dplyr::filter(bcg == x), 
+      mapping = aes(
+        colour = bcg, 
+        y = freq
+      ), 
+      alpha = 0.5
+    )
+}
+
+p_5d <- p_5d + 
+  geom_point(
+    data = est_ci_tbl, 
+    aes(y = est)
+  ) +
+  geom_errorbar(
+    data = est_ci_tbl, 
+    aes(ymin = lb, ymax = ub), 
+    width = 0.25
+  )
+
+col_vec_bcg_infant <- RColorBrewer::brewer.pal(
+    9, "Blues")[c(5, 9)]
+bcg_to_col_infant <- setNames(
+  col_vec_bcg_infant, 
+  c("no bcg", "bcg")
+)
+break_vec_trans <- seq(
+  0, sqrt(max(plot_tbl_5d$freq)),
+  length.out = 5
+)
+break_vec <- break_vec_trans^2
+break_vec <- c(0, 2, 8, 16, 32)
+
+length_axis_orig_trans <- diff(sqrt(range(plot_tbl_5d$freq)))
+range_upper_bound_trans <- sqrt(max(plot_tbl_5d$freq)) + length_axis_orig_trans * 0.2
+range_upper_bound <- range_upper_bound_trans^2
+y_pos_trans <- sqrt(max(plot_tbl_5d$freq)) + length_axis_orig_trans * 0.02
+
+p_tbl <- tibble::tibble(p = p) %>%
+          dplyr::mutate(
+            xmin = 0,
+            xmax = 1
+          ) %>%
+          dplyr::mutate(
+            p_txt = purrr::map_chr(p, function(elem) {
+              paste0(
+                "p ",
+                ifelse(
+                  elem < 0.0001,
+                  "< 0.0001",
+                  paste0(" = ", signif(elem, 2)))
+              )
+            }),
+            diff_p_bonf = p * 2,
+            q_txt = purrr::map_chr(diff_p_bonf, function(p) {
+              paste0(
+                "(q ",
+                ifelse(
+                  p < 0.0001,
+                  "< 0.0001",
+                  paste0(" = ", signif(p, 2))),
+
+                ")"
+              )
+            })
+          ) %>%
+          dplyr::mutate(
+            y = y_pos_trans
+          )
+p_5d <- p_5d + 
+  scale_colour_manual(
+    values = bcg_to_col_infant
+  ) +
+  guides(colour = "none") +
+  scale_x_continuous(
+    breaks = 0:1, 
+    labels = c("No BCG", "BCG")
+  ) + 
+  geom_hline(
+    aes(yintercept = 0), 
+    colour = "gray85"
+  )  +
+  scale_y_continuous(
+    breaks = break_vec,
+    # limits = c(-1, max(break_vec)),
+    trans = scale_sqrt
+  ) + 
+  expand_limits(y = c(0, range_upper_bound)) +
+  ggsignif::geom_signif(
+    data = p_tbl,
+    mapping = aes(xmin = xmin, xmax = xmax,
+                  y_position  = y, annotations = p_txt),
+    manual = TRUE, vjust = -1.54,
+    textsize = 2.75,
+    tip_length = 0.02
+    ) +
+  ggsignif::geom_signif(
+    data = p_tbl,
+    mapping = aes(xmin = xmin, xmax = xmax,
+                  y_position  = y, annotations = q_txt),
+    manual = TRUE, vjust = -0.2,
+    textsize = 2.75,
+    tip_length = 0.02
+    ) +
+  theme(axis.title.x = element_blank())  +
+  theme(axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank())
+```
+
+```{r }
+pop_sub_vec_f <- c("cd8p_cd4n", "cd8n_cd4n", "cd8n_cd4p")
+
+plot_tbl_5f <- data_tidy_freq_ifng %>%
+  dplyr::filter(pop == "cd26_161") %>%
+  dplyr::filter(pop_sub %in% pop_sub_vec_f) %>%
+  dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0)) %>%
+  dplyr::mutate(x_order_num = x_order_num +
+                  purrr::map_dbl(pop_sub, function(x) {
+                    switch(
+                      x, 
+                      "cd8p_cd4n" = 0, 
+                      "cd8n_cd4n" = 2, 
+                      "cd8n_cd4p" = 4, 
+                      stop(paste0(x, " not recognised"))
+                    )
+  }))
+
+data_mod_5f <- plot_tbl_5f %>%
+  dplyr::mutate(freq = sqrt(freq))
+
+est_ci_tbl <- purrr::map_df(pop_sub_vec_f, function(pop_sub) {
+  data_mod_5f_pop_sub <- data_mod_5f %>%
+    dplyr::filter(pop_sub == .env$pop_sub)
+  # compute estimate and ci
+  est_ci_tbl_pop <- purrr::map_df(c("no bcg", "bcg"), function(x) {
+    data_mod_5f_grp <- data_mod_5f_pop_sub %>%
+      dplyr::mutate(
+        bcg = factor(
+          bcg, 
+          levels = c(
+            x, 
+            setdiff(unique(data_mod_5b$bcg), x)
+          )
+        )
+      )
+    fit_est_ci <- try(quantreg::rq(
+      freq ~ 1 + bcg, 
+      tau = 0.5,
+      data = data_mod_5f_grp
+    ), silent = TRUE)
+    
+    mod_summ <- summary(fit_est_ci)
+    coef_tbl <- coefficients(mod_summ) 
+    coef_vec <- (coef_tbl[1, c("lower bd", "upper bd")] %>%
+        as.vector())^2
+    coef_est <- (coef_tbl[1, "coefficients"])^2
+    tibble::tibble(
+      pop_sub = pop_sub,
+      bcg = x, 
+      est = coef_est, 
+      lb = coef_vec[1], 
+      ub = coef_vec[2]
+    )
+  }) %>%
+    dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0)) %>%
+    dplyr::mutate(x_order_num = x_order_num +
+                  purrr::map_dbl(pop_sub, function(x) {
+                    switch(
+                      x, 
+                      "cd8p_cd4n" = 0, 
+                      "cd8n_cd4n" = 2, 
+                      "cd8n_cd4p" = 4, 
+                      stop(paste0(x, " not recognised"))
+                    )
+  }))
+}) 
+
+est_ci_tbl <- est_ci_tbl %>%
+  dplyr::mutate(lb = ifelse(lb == Inf, 0, lb))
+
+diff_tbl <- purrr::map_df(pop_sub_vec_f, function(pop_sub) {
+  
+  data_mod_5f_pop_sub <- data_mod_5f %>%
+    dplyr::filter(pop_sub == .env$pop_sub)
+  # compute p-value
+  fit_large <- try(quantreg::rq(
+    freq ~ 1 + bcg + race + sex, 
+    tau = 0.5,
+    data = data_mod_5f_pop_sub
+  ), silent = TRUE)
+  fit_small <- try(quantreg::rq(
+    freq ~ 1  + race + sex, 
+    tau = 0.5,
+    data = data_mod_5f_pop_sub
+  ), silent = TRUE)
+  anova_fit <- anova(fit_large, fit_small)
+  p <- anova_fit$table$pvalue
+  tibble::tibble(
+    pop_sub = pop_sub, 
+    p = p
+  )
+}) 
+
+p_5f <- ggplot(data = plot_tbl_5f) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  labs(y = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD3+CD26+CD161+")))))
+
+for(pop_sub in pop_sub_vec_f) {
+  for(x in c("bcg", "no bcg")) {
+    p_5f <- p_5f + 
+      ggforce::geom_sina(
+        data = plot_tbl_5f %>%
+          dplyr::filter(bcg == x, 
+                        pop_sub == .env$pop_sub), 
+        mapping = aes(
+          x = x_order_num, 
+          colour = bcg, 
+          y = freq
+        ), 
+      alpha = 0.5
+      )
+    }
+}
+
+
+
+p_5f <- p_5f + 
+  geom_point(
+    data = est_ci_tbl, 
+    aes(y = est, x = x_order_num)
+  ) +
+  geom_errorbar(
+    data = est_ci_tbl, 
+    aes(ymin = lb, ymax = ub, x = x_order_num), 
+    width = 0.75
+  )
+
+col_vec_bcg_infant <- RColorBrewer::brewer.pal(
+    9, "Blues")[c(5, 9)]
+bcg_to_col_infant <- setNames(
+  col_vec_bcg_infant, 
+  c("no bcg", "bcg")
+)
+break_vec_trans <- seq(
+  0, sqrt(max(plot_tbl_5f$freq)),
+  length.out = 5
+)
+
+break_vec <- c(0, 2, 8, 16, 32)
+
+length_axis_orig_trans <- diff(sqrt(range(plot_tbl_5f$freq)))
+range_upper_bound_trans <- sqrt(max(plot_tbl_5f$freq)) + length_axis_orig_trans * 0.2
+range_upper_bound <- range_upper_bound_trans^2
+y_pos_trans <- sqrt(max(plot_tbl_5f$freq)) + length_axis_orig_trans * 0.02
+
+p_tbl <- diff_tbl %>%
+  dplyr::mutate(
+    xmin = purrr::map_dbl(pop_sub, function(x) {
+      switch(
+        x, 
+        "cd8p_cd4n" = 0, 
+        "cd8n_cd4n" = 2, 
+        "cd8n_cd4p" = 4
+      )
+    }),
+    xmax = purrr::map_dbl(pop_sub, function(x) {
+      switch(
+        x, 
+        "cd8p_cd4n" = 1, 
+        "cd8n_cd4n" = 3, 
+        "cd8n_cd4p" = 5
+      )
+    })
+  ) %>%
+  dplyr::mutate(
+    p_txt = purrr::map_chr(p, function(elem) {
+      paste0(
+        "p ",
+        ifelse(
+          elem < 0.0001,
+          "< 0.0001",
+          paste0(" = ", signif(elem, 2)))
+      )
+    }),
+    diff_p_bonf = p * 6,
+    q_txt = purrr::map_chr(diff_p_bonf, function(p) {
+      paste0(
+        "(q ",
+        ifelse(
+          p < 0.0001,
+          "< 0.0001",
+          paste0(" = ", signif(p, 2))),
+
+        ")"
+      )
+    })
+  ) %>%
+  dplyr::mutate(
+    y = y_pos_trans
+  )
+
+p_5f <- p_5f + 
+  scale_colour_manual(
+    values = bcg_to_col_infant
+  ) +
+  guides(colour = "none") +
+  scale_x_continuous(
+    breaks = 0:5
+  ) + 
+  geom_hline(
+    aes(yintercept = 0), 
+    colour = "gray85"
+  )  +
+  scale_y_continuous(
+    breaks = break_vec,
+    limits = c(-1, max(range_upper_bound)),
+    trans = scale_sqrt
+  ) + 
+  expand_limits(y = c(0, range_upper_bound)) +
+  ggsignif::geom_signif(
+    data = p_tbl,
+    mapping = aes(xmin = xmin, xmax = xmax,
+                  y_position  = y, annotations = p_txt),
+    manual = TRUE, vjust = -1.54,
+    textsize = 2.75,
+    tip_length = 0.02
+    ) +
+  ggsignif::geom_signif(
+    data = p_tbl,
+    mapping = aes(xmin = xmin, xmax = xmax,
+                  y_position  = y, annotations = q_txt),
+    manual = TRUE, vjust = -0.2,
+    textsize = 2.75,
+    tip_length = 0.02
+    ) +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank())
+
+vline_tbl <- tibble::tibble(
+  x = rep(c(1.5, 3.5), each = 2),
+  y = rep(c(0, max(plot_tbl_5f$freq)), 2),
+  grp = rep(letters[1:2], each = 2)
+)
+p_5f <- p_5f + 
+  geom_line(
+    data = vline_tbl, 
+    mapping = aes(x = x, y = y, group = grp), 
+    linetype = "dotted", 
+    colour = "gray50"
+  )
+
+
+plot_tbl_marker <- plot_tbl_5f %>%
+  dplyr::mutate(
+    CD8 = ifelse(grepl("cd8p", pop_sub), "+", "-"),
+    CD4 = ifelse(grepl("cd4p", pop_sub), "+", "-"),
+  ) %>%
+  tidyr::pivot_longer(
+    c(CD8, CD4),
+    names_to = "marker",
+    values_to = "lvl"
+  )
+plot_tbl_marker <- plot_tbl_marker %>%
+  dplyr::group_by(pop_sub, marker, lvl) %>%
+  dplyr::summarise(x_order_num = mean(x_order_num),
+                   .groups = "drop")
+
+p_marker_f <- ggplot(plot_tbl_marker,
+       aes(x = x_order_num, y = marker, fill = lvl)) +
+  cowplot::theme_cowplot() +
+  theme(axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.line.y = element_blank()) +
+  geom_tile() +
+  geom_text(aes(label = lvl)) +
+  scale_fill_manual(
+    values = c("-" = "white",
+               "+" = "white") # cornsilk1/2 looks all right
+  ) +
+  scale_colour_manual(
+    values = c("-" = "white",
+               "+" = "white") # was gold3
+  ) +
+  guides("fill" = "none") +
+  theme(axis.title = element_blank()) +
+  theme(
+    axis.text.y = element_text(size = 10)
+  ) +
+  scale_x_continuous(
+    expand = expansion(mult = 0, add = c(0.1, 0))
+  ) +
+  theme(axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank())
+```
+
+```{r }
+plot_tbl_5g <- data_tidy_freq_ifng %>%
+  dplyr::rename(bcg_orig = bcg) %>%
+  dplyr::filter(pop == "cd26_161") %>%
+  dplyr::filter(pop_sub %in% c("trav12p", "trav12n")) %>%
+  dplyr::rename(bcg = pop_sub) %>%
+  dplyr::mutate(
+    bcg = purrr::map_chr(bcg, function(x) {
+      switch(
+        x, 
+        "trav12p" = "bcg", 
+        "trav12n" = "no bcg",
+        stop(paste0(x, " not recognised"))
+      )
+    })
+  ) %>%
+  dplyr::select(-bcg_orig) %>%
+  dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0))
+
+data_mod_5g <- plot_tbl_5g %>%
+  dplyr::mutate(freq = sqrt(freq))
+
+# compute estimate and ci
+est_ci_tbl <- purrr::map_df(c("no bcg", "bcg"), function(x) {
+  data_mod_5g_grp <- data_mod_5g %>%
+    dplyr::mutate(
+      bcg = factor(
+        bcg, 
+        levels = c(
+          x, 
+          setdiff(unique(data_mod_5b$bcg), x)
+        )
+      )
+    )
+  fit_est_ci <- try(quantreg::rq(
+    freq ~ 1 + bcg, 
+    tau = 0.5,
+    data = data_mod_5g_grp
+  ), silent = TRUE)
+  
+  mod_summ <- summary(fit_est_ci)
+  coef_tbl <- coefficients(mod_summ) 
+  coef_vec <- (coef_tbl[1, c("lower bd", "upper bd")] %>%
+      as.vector())^2
+  coef_est <- (coef_tbl[1, "coefficients"])^2
+  tibble::tibble(
+    bcg = x, 
+    est = coef_est, 
+    lb = coef_vec[1], 
+    ub = coef_vec[2]
+  )
+}) %>%
+  dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0))
+
+# compute p-value
+fit_large <- try(quantreg::rq(
+  freq ~ 1 + bcg + race + sex, 
+  tau = 0.5,
+  data = data_mod_5g
+), silent = TRUE)
+fit_small <- try(quantreg::rq(
+  freq ~ 1  + race + sex, 
+  tau = 0.5,
+  data = data_mod_5g
+), silent = TRUE)
+anova_fit <- anova(fit_large, fit_small)
+p <- anova_fit$table$pvalue
+
+p_wc <- wilcox.test(
+  x = plot_tbl_5g$freq[plot_tbl_5g$bcg == "no bcg"],
+  y = plot_tbl_5g$freq[plot_tbl_5g$bcg == "bcg"]
+)$p.value
+
+p_5g <- ggplot(data = plot_tbl_5g, 
+               mapping = aes(x = x_order_num)) +
+  cowplot::theme_cowplot() +
+  cowplot::background_grid(major = "y") +
+  labs(y = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD4+CD26+CD161+")))))
+
+for(x in c("bcg", "no bcg")) {
+  p_5g <- p_5g + 
+    ggforce::geom_sina(
+      data = plot_tbl_5g %>%
+        dplyr::filter(bcg == x), 
+      mapping = aes(
+        colour = bcg, 
+        y = freq
+      )
+    )
+}
+
+p_5g <- p_5g + 
+  geom_point(
+    data = est_ci_tbl, 
+    aes(y = est)
+  ) +
+  geom_errorbar(
+    data = est_ci_tbl, 
+    aes(ymin = lb, ymax = ub), 
+    width = 0.25
+  )
+
+col_vec_bcg_trav <- RColorBrewer::brewer.pal(
+    9, "Purples")[c(5, 9)]
+bcg_to_col_trav <- setNames(
+  col_vec_bcg_trav, 
+  c("no bcg", "bcg")
+)
+break_vec_trans <- seq(
+  0, max(plot_tbl_5g$freq),
+  length.out = 5
+)
+break_vec <- break_vec_trans^2
+break_vec <- c(0, 25, 50, 75, 1e2)
+
+length_axis_orig_trans <- diff(range(plot_tbl_5g$freq))
+range_upper_bound_trans <- max(plot_tbl_5g$freq) + length_axis_orig_trans * 0.2
+range_upper_bound <- range_upper_bound_trans
+y_pos_trans <- max(plot_tbl_5g$freq) + length_axis_orig_trans * 0.02
+
+p_tbl <- tibble::tibble(p = p) %>%
+          dplyr::mutate(
+            xmin = 0,
+            xmax = 1
+          ) %>%
+          dplyr::mutate(
+            p_txt = purrr::map_chr(p, function(elem) {
+              paste0(
+                "p ",
+                ifelse(
+                  elem < 0.0001,
+                  "< 0.0001",
+                  paste0(" = ", signif(elem, 2)))
+              )
+            }),
+            diff_p_bonf = p * 6,
+            q_txt = purrr::map_chr(diff_p_bonf, function(p) {
+              paste0(
+                "(q ",
+                ifelse(
+                  p < 0.0001,
+                  "< 0.0001",
+                  paste0(" = ", signif(p, 2))),
+
+                ")"
+              )
+            })
+          ) %>%
+          dplyr::mutate(
+            y = y_pos_trans
+          )
+p_5g <- p_5g + 
+  scale_colour_manual(
+    values = bcg_to_col_trav
+  ) +
+  guides(colour = "none") +
+  scale_x_continuous(
+    breaks = 0:1, 
+    labels = c("TRAV1-2-", "TRAV1-2+")
+  ) + 
+  geom_hline(
+    aes(yintercept = 0), 
+    colour = "gray85"
+  )  +
+  scale_y_continuous(
+    breaks = break_vec
+  ) + 
+  expand_limits(y = c(0, range_upper_bound)) +
+  ggsignif::geom_signif(
+    data = p_tbl,
+    mapping = aes(xmin = xmin, xmax = xmax,
+                  y_position  = y, annotations = p_txt),
+    manual = TRUE, vjust = -1.54,
+    textsize = 2.75,
+    tip_length = 0.02
+    ) +
+  ggsignif::geom_signif(
+    data = p_tbl,
+    mapping = aes(xmin = xmin, xmax = xmax,
+                  y_position  = y, annotations = q_txt),
+    manual = TRUE, vjust = -0.2,
+    textsize = 2.75,
+    tip_length = 0.02
+    ) +
+  theme(axis.title.x = element_blank())
+```
+
+```{r }
+dir_fig_manual <- file.path(dirname(dir_fig_vec_rel[1]), 
+                            "manual", 
+                            "figure_5_sub")
+p_fig5_left <- cowplot::ggdraw() + 
+  cowplot::draw_image(
+    file.path(dir_fig_manual, "fig5_a.png"), 
+    x = 0, width = 2/3, 
+    y = 2/3, height = 1/3
+  ) +
+  cowplot::draw_image(
+    file.path(dir_fig_manual, "fig5_c.png"), 
+    x = 0, width = 2/3, 
+    y = 1/3, height = 1/3
+  ) +
+  cowplot::draw_image(
+    file.path(dir_fig_manual, "fig5_e.png"), 
+    x = 0, width = 2/3, 
+    y = 0, height = 1/3
+  )
+
+plot_tbl_legend <- tibble::tibble(
+  x = c(0.15, 0.725), 
+  y = rep(0.45, 2), 
+  grp = c("no bcg", "bcg"), 
+  lbl = c("No BCG", "BCG")
+)
+
+p_legend <- ggplot() + 
+  theme_void() + 
+  geom_point(
+    data = plot_tbl_legend, 
+    aes(x = x - 0.08, y = y, col = grp), 
+    size = 3, 
+    alpha = 0.5
+  ) +
+  geom_text(
+    data = plot_tbl_legend, 
+    aes(x = x, y = y - 0.1, label = lbl), 
+    hjust = 0, 
+    vjust = 0, 
+    size = 4.25 
+  ) +
+  scale_colour_manual(
+    values = bcg_to_col_infant
+  ) +
+  lims(x = c(0,1), y = c(0,1)) +
+  guides("alpha" = "none", "colour" = "none", 
+         "fill" = "none", 
+         "shape" = "none") 
+
+p_fig5_right <- cowplot::plot_grid(
+  p_5b, 
+  p_5d, 
+  p_5f, 
+  ggplot() + theme_void(),
+  p_legend,
+  p_5g, 
+  ncol = 1, 
+  rel_heights = c(1, 1, 1, 1/4, 1/6, 1),
+  align = "v", 
+  axis = "l"
+)
+
+p_fig5 <- cowplot::ggdraw() + 
+  cowplot::draw_plot(
+    p_fig5_left, 
+    width = 0.8, 
+    x = 0.02
+  ) +
+  cowplot::draw_plot(
+    p_fig5_right, 
+    width = 0.4, 
+    x = 0.6
+  ) +
+  cowplot::draw_plot(
+    p_marker_f, 
+    width = 0.3625, 
+    x = 0.63, 
+    y = 0.3, 
+    height = (1/6)/(4 + 1/6 + 1/4), 
+  ) 
+path_fig <- file.path(dir_fig_manu, "fig_5.pdf")
+cowplot::ggsave2(
+  path_fig, 
+  p_fig5, 
+  height = 29.4, 
+  width = 19, 
+  units = "cm"
+)
+od(path_fig)
+
+```
