@@ -1,7 +1,7 @@
-# Supplementary Figure 2
+# Supplementary Figure 1
 
 ```{r }
-n_sample <- 1e3
+n_sample <- 1e4
 std_effect <- 1
 mean_null <- 0
 mean_alt <- std_effect
@@ -15,6 +15,7 @@ beta_shape2 <- 5
 ```
 
 ```{r }
+set.seed(3)
 power_tbl <- purrr::map_df(dbn_vec, function(dbn) {
   purrr::map_df(std_effect_vec, function(std_effect) {
     par_null <- switch(
@@ -232,7 +233,7 @@ p_power_grid <- cowplot::plot_grid(p_power, p_dbn, ncol = 1,
                    align = "v",
                    axis = "lr",
                    rel_heights = c(1.5, 1))
-path_fig <- file.path(dir_fig_manu, "supp_fig_2.pdf")
+path_fig <- file.path(dir_fig_manu, "fig1s.pdf")
 cowplot::ggsave2(
   path_fig,
   p_power_grid,
