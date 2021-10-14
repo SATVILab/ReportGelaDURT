@@ -172,7 +172,7 @@ cowplot::ggsave2(
 ```
 
 ```{r , results = "asis"}
-knitr::include_graphics(path_fig_rel)
+knitr::include_graphics(path_fig_rel_png)
 ```
 
 ##### Variable by BCG status
