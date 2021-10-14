@@ -73,6 +73,11 @@ if (interactive()) {
   dir_fig_manu_n <- here::here(
     "_book",
     "figures",
+    "manuscript"
+  )
+  dir_fig_manu_n <- here::here(
+    "_book",
+    "figures",
     "non_manuscript"
   )
   dir_fig_vec <- c(
