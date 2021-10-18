@@ -1838,8 +1838,8 @@ plot_list_fig2 <- purrr::map(pop_vec_conf, function(pop) {
             dplyr::mutate(age = ifelse(trt %in% c("No BCG", "BCG"), 
                           "infant", "adult")) %>%
             dplyr::filter(trt == trt_lvl), 
-          aes(x = trt_num, y = freq, col = trt, shape = age), 
-          alpha = 0.5
+          aes(x = trt_num, y = freq, col = trt), 
+          alpha = 0.65
         )
     }
 
@@ -1972,8 +1972,6 @@ p_fig2_grp <- cowplot::plot_grid(
   rel_widths = c(2, 1, 2, 1), 
   align = "hv", 
   axis = "lrtb"
-  #labels = LETTERS[1:7],
-  #hjust = -0.175
 )
 
 path_fig_rel_pdf <- file.path(
@@ -2003,20 +2001,59 @@ for(i in seq_along(plot_list_fig2)) {
     )
 }
 
-plot_tbl_legend <- tibble::tibble(
-  x = c(0.5, 0.5), 
-  y = c(0.6, 0.5), 
-  col = c("red", "dodgerblue"), 
-  shape = c("triangle", "circle"), 
-  lbl = c("Infant", "Adult")
+grp_to_col_legend <- trt_to_col[c("no bcg", "bcg", "before", "after")]
+
+grp_to_x <- setNames(
+  rep(c(0, 0.425), each = 2) + 0.15, # was 0.225
+  names(grp_to_col_legend)
 )
-p_legend <- ggplot(plot_tbl_legend) + 
+
+grp_to_y <- setNames(
+  rep(c(0.75, 0.65), 2) - 0.05,
+  names(grp_to_col_legend)
+)
+
+grp_to_lab <- setNames(
+  c("Infant: No BCG",
+    "Infant: BCG", 
+    "Adult: Before BCG", 
+    "Adult: After BCG"),
+  names(grp_to_col_legend)
+)
+
+plot_tbl_legend_grp <- purrr::map_df(
+  unique(names(grp_to_col_legend)), function(grp) {
+  tibble::tibble(
+    grp = grp, 
+    x = grp_to_x[grp], 
+    y = grp_to_y[grp],
+    lbl = grp_to_lab[grp]
+  )
+})
+
+p_legend <- ggplot() + 
   theme_void() + 
-  geom_point(aes(x, y, shape = shape), 
-             show.legend = FALSE) +
-  lims(x = 0:1, y = 0:1) +
-  geom_text(aes(x = x + 0.05, y, label = lbl), 
-            hjust = 0)
+  geom_point(
+    data = plot_tbl_legend_grp, 
+    aes(x = x - 0.035, y = y, col = grp), 
+    size = 3, alpha = 0.65
+  ) +
+  geom_text(
+    data = plot_tbl_legend_grp, 
+    aes(x = x, y = y - 0.025, label = lbl), 
+    hjust = 0, 
+    vjust = 0, 
+    size = 4.25 
+  ) +
+  scale_colour_manual(
+    values = grp_to_col_legend
+  ) +
+  lims(x = c(0,1), y = c(0,1)) +
+  guides("alpha" = "none", "colour" = "none", 
+         "fill" = "none", 
+         "shape" = "none") 
+
+
 p_fig2 <- p_fig2_diff + 
   cowplot::draw_plot(
     plot = p_legend, 
@@ -2025,6 +2062,33 @@ p_fig2 <- p_fig2_diff +
     width = 1/2, 
     height = 1/4
   )
+
+x_l <- 0.07
+x_r <- 0.565
+label_tbl <- tibble::tibble(
+  lbl = LETTERS[1:7],
+  x = c(
+    x_l,
+    x_r,
+    x_l,
+    x_r,
+    x_l,
+    x_r, 
+    x_l
+  ), 
+  y = c(0.99, 0.99,
+        0.76, 0.76,
+        0.51, 0.51,
+        0.25)
+)
+for(i in seq_len(nrow(label_tbl))) {
+  p_fig2 <- p_fig2 + 
+    cowplot::draw_text(
+      text = label_tbl$lbl[i],
+      x = label_tbl$x[i],
+      y = label_tbl$y[i]
+    )
+}
   
 path_fig_rel_pdf <- file.path(
     dir_fig_vec_rel["manu"],
