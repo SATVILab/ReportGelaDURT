@@ -362,46 +362,29 @@ for(i in 1:4) {
     ) 
 }
 path_fig_grp <- file.path(dir_fig_manu, "fig_2s-grp.pdf")
-cowplot::ggsave2(
-  path_fig_grp, 
-  p_out, 
-  height = 29.4 * 0.9, 
-  width = 19 * 0.75, 
-  units = "cm"
-)
-od(path_fig_grp)
 
 # Plot legend
 # =====================
 
-
-color_vec <- c(
-  RColorBrewer::brewer.pal(
-    9,
-    "Reds"
-    )[c(5, 7:9)])
-
-grp_to_col <- setNames(
-  color_vec,
-  data_raw_pop$grp %>% unique() %>% as.character()
-)
+trt_vec_s2 <- paste0("day_", c(0, 21, 35, 365))
 
 grp_to_x <- setNames(
   0.31 + seq(0, 0.4, length.out = 4),
-  names(grp_to_col)
+  trt_vec_s2
 )
 grp_to_y <- setNames(
   rep(0.25, 4),
-  names(grp_to_col)
+  trt_vec_s2
 )
 grp_to_lab <- setNames(
   c("Day 0",
     "Day 21", 
     "Day 35", 
     "Day 365"),
-  names(grp_to_y)
+  trt_vec_s2
 )
-plot_tbl_legend_grp <- purrr::map_df(unique(names(grp_to_col)), function(grp) {
+plot_tbl_legend_grp <- purrr::map_df(paste0("day_", c(0, 21, 35, 365)),
+                                     function(grp) {
   tibble::tibble(
     grp = grp, 
     x = grp_to_x[grp], 
@@ -415,7 +398,7 @@ p_legend <- ggplot() +
     data = plot_tbl_legend_grp, 
     aes(x = x - 0.0175, y = y, col = grp), 
     size = 3, 
-    alpha = 0.5
+    alpha = 0.65
   ) +
   geom_text(
     data = tibble::tibble(
@@ -436,12 +419,27 @@ p_legend <- ggplot() +
     size = 4.25 
   ) +
   scale_colour_manual(
-    values = grp_to_col
+    values = trt_to_col
   ) +
   lims(x = c(0,1), y = c(0,1)) +
   guides("alpha" = "none", "colour" = "none", 
          "fill" = "none", 
          "shape" = "none") 
+
+label_tbl <- tibble::tibble(
+  lbl = LETTERS[1:4],
+  x = 0.025, 
+  y = seq(1, 0.25, by = -0.25) - 0.01
+)
+for(i in seq_len(nrow(label_tbl))) {
+  p_out <- p_out + 
+    cowplot::draw_text(
+      text = label_tbl$lbl[i],
+      x = label_tbl$x[i],
+      y = label_tbl$y[i]
+    )
+}
+
 
 plot_frac <- 0.95
 plot_legend_add_height <- 0
@@ -458,14 +456,33 @@ p_test_full <- cowplot::ggdraw() +
     width = 1, 
     height = 1 - plot_frac + plot_legend_add_height
   )
-path_fig <- file.path(dir_fig_manu, "fig_2s.pdf")
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "supp_fig_2.pdf"
+  )
+path_fig_rel_png <- file.path(
+    dir_fig_vec_rel["manu"],
+    "supp_fig_2.png"
+  )
+
 cowplot::ggsave2(
-  path_fig, 
+  path_fig_rel_png, 
   p_test_full, 
   height = 29.4, 
   width = 19, 
   units = "cm"
 )
 
-od(path_fig)
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_test_full, 
+  height = 29.4, 
+  width = 19, 
+  units = "cm"
+)
+```
+
+```{r , results = "asis"}
+knitr::include_graphics(path_fig_rel_png)
 ```

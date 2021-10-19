@@ -8,4 +8,7 @@ rmd_files:
 - figure_2.Rmd
 - figure_3.Rmd
 - figure_4.Rmd
+- figure_5.Rmd
+- figure_6.Rmd
 - supp_figure_1.Rmd
+- supp_figure_2.Rmd

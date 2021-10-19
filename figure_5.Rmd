@@ -1,4 +1,4 @@
-## Figure 5
+# Figure 5
 
 ```{r }
 data_tidy_freq_ifng <- DataTidyGelaDURT::data_tidy_freq_ifng %>%
@@ -25,7 +25,7 @@ scale_sqrt <- scales::trans_new(
 )
 ```
 
-```{r }
+```{r , include = FALSE}
 plot_tbl_5b <- data_tidy_freq_ifng %>%
   dplyr::filter(pop == "gd") %>%
   dplyr::mutate(x_order_num = ifelse(bcg == "bcg", 1, 0))
@@ -87,10 +87,14 @@ p_wc <- wilcox.test(
 
 p_5b <- ggplot(data = plot_tbl_5b, 
                mapping = aes(x = x_order_num)) +
+  geom_hline(
+    aes(yintercept = 0), 
+    colour = "gray85"
+  )  +
   cowplot::theme_cowplot() +
   cowplot::background_grid(major = "y") +
-  labs(y = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+ ")),
-                        gamma, delta, plain(paste("TCR+ cells (%)")))))
+  labs(y = "T cells (%)")
+
 
 for(x in c("bcg", "no bcg")) {
   p_5b <- p_5b + 
@@ -101,7 +105,9 @@ for(x in c("bcg", "no bcg")) {
         colour = bcg, 
         y = freq
       ), 
-      alpha = 0.5
+      alpha = 0.65, 
+      maxwidth = 0.375, 
+      scale = "width"
     )
 }
 
@@ -115,12 +121,7 @@ p_5b <- p_5b +
     aes(ymin = lb, ymax = ub), 
     width = 0.25
   )
-col_vec_bcg_infant <- RColorBrewer::brewer.pal(
-    9, "Blues")[c(5, 9)]
-bcg_to_col_infant <- setNames(
-  col_vec_bcg_infant, 
-  c("no bcg", "bcg")
-)
+
 break_vec_trans <- seq(
   0, sqrt(max(plot_tbl_5b$freq)),
   length.out = 5
@@ -129,9 +130,9 @@ break_vec <- break_vec_trans^2
 break_vec <- c(0, 0.3, 1.5, 3, 6)
 
 length_axis_orig_trans <- diff(sqrt(range(plot_tbl_5b$freq)))
-range_upper_bound_trans <- sqrt(max(plot_tbl_5b$freq)) + length_axis_orig_trans * 0.2
+range_upper_bound_trans <- sqrt(max(plot_tbl_5b$freq)) + length_axis_orig_trans * 0.12
 range_upper_bound <- range_upper_bound_trans^2
-y_pos_trans <- sqrt(max(plot_tbl_5b$freq)) + length_axis_orig_trans * 0.02
+y_pos_trans <- sqrt(max(plot_tbl_5b$freq)) + length_axis_orig_trans * 0.0475
 
 p_tbl <- tibble::tibble(p = p) %>%
           dplyr::mutate(
@@ -166,17 +167,13 @@ p_tbl <- tibble::tibble(p = p) %>%
           )
 p_5b <- p_5b + 
   scale_colour_manual(
-    values = bcg_to_col_infant
+    values = trt_to_col
   ) +
   guides(colour = "none") +
   scale_x_continuous(
     breaks = 0:1, 
     labels = c("No BCG", "BCG")
   ) + 
-  geom_hline(
-    aes(yintercept = 0), 
-    colour = "gray85"
-  )  +
   scale_y_continuous(
     breaks = break_vec,
     trans = scale_sqrt
@@ -198,10 +195,11 @@ p_5b <- p_5b +
     textsize = 2.75,
     tip_length = 0.03
     ) +
-  theme(axis.title.x = element_blank())
+  theme(axis.title.x = element_blank()) +
+  expand_limits(x = c(-0.55, 1.55))
 ```
 
-```{r }
+```{r , include = FALSE}
 plot_tbl_5d <- data_tidy_freq_ifng %>%
   dplyr::filter(pop == "cd26_161") %>%
   dplyr::filter(pop_sub == "-") %>%
@@ -265,9 +263,13 @@ p_wc <- wilcox.test(
 
 p_5d <- ggplot(data = plot_tbl_5d, 
                mapping = aes(x = x_order_num)) +
+  geom_hline(
+    aes(yintercept = 0), 
+    colour = "gray85"
+  )  +
   cowplot::theme_cowplot() +
   cowplot::background_grid(major = "y") +
-  labs(y = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD3+CD26+CD161+")))))
+  labs(y = "T cells (%)")
 
 for(x in c("bcg", "no bcg")) {
   p_5d <- p_5d + 
@@ -278,7 +280,9 @@ for(x in c("bcg", "no bcg")) {
         colour = bcg, 
         y = freq
       ), 
-      alpha = 0.5
+      alpha = 0.65, 
+      maxwidth = 0.375, 
+      scale = "width"
     )
 }
 
@@ -293,12 +297,7 @@ p_5d <- p_5d +
     width = 0.25
   )
 
-col_vec_bcg_infant <- RColorBrewer::brewer.pal(
-    9, "Blues")[c(5, 9)]
-bcg_to_col_infant <- setNames(
-  col_vec_bcg_infant, 
-  c("no bcg", "bcg")
-)
+
 break_vec_trans <- seq(
   0, sqrt(max(plot_tbl_5d$freq)),
   length.out = 5
@@ -307,9 +306,9 @@ break_vec <- break_vec_trans^2
 break_vec <- c(0, 2, 8, 16, 32)
 
 length_axis_orig_trans <- diff(sqrt(range(plot_tbl_5d$freq)))
-range_upper_bound_trans <- sqrt(max(plot_tbl_5d$freq)) + length_axis_orig_trans * 0.2
+range_upper_bound_trans <- sqrt(max(plot_tbl_5d$freq)) + length_axis_orig_trans * 0.12
 range_upper_bound <- range_upper_bound_trans^2
-y_pos_trans <- sqrt(max(plot_tbl_5d$freq)) + length_axis_orig_trans * 0.02
+y_pos_trans <- sqrt(max(plot_tbl_5d$freq)) + length_axis_orig_trans * 0.0475
 
 p_tbl <- tibble::tibble(p = p) %>%
           dplyr::mutate(
@@ -344,17 +343,13 @@ p_tbl <- tibble::tibble(p = p) %>%
           )
 p_5d <- p_5d + 
   scale_colour_manual(
-    values = bcg_to_col_infant
+    values = trt_to_col
   ) +
   guides(colour = "none") +
   scale_x_continuous(
     breaks = 0:1, 
     labels = c("No BCG", "BCG")
   ) + 
-  geom_hline(
-    aes(yintercept = 0), 
-    colour = "gray85"
-  )  +
   scale_y_continuous(
     breaks = break_vec,
     # limits = c(-1, max(break_vec)),
@@ -377,12 +372,11 @@ p_5d <- p_5d +
     textsize = 2.75,
     tip_length = 0.02
     ) +
-  theme(axis.title.x = element_blank())  +
-  theme(axis.ticks.x = element_blank(), 
-        axis.text.x = element_blank())
+  theme(axis.title.x = element_blank()) +
+  expand_limits(x = c(-0.55, 1.55))
 ```
 
-```{r }
+```{r , include = FALSE}
 pop_sub_vec_f <- c("cd8p_cd4n", "cd8n_cd4n", "cd8n_cd4p")
 
 plot_tbl_5f <- data_tidy_freq_ifng %>%
@@ -477,9 +471,13 @@ diff_tbl <- purrr::map_df(pop_sub_vec_f, function(pop_sub) {
 }) 
 
 p_5f <- ggplot(data = plot_tbl_5f) +
+  geom_hline(
+    aes(yintercept = 0), 
+    colour = "gray85"
+  )  +
   cowplot::theme_cowplot() +
   cowplot::background_grid(major = "y") +
-  labs(y = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD3+CD26+CD161+")))))
+  labs(y = "T cells (%)")
 
 for(pop_sub in pop_sub_vec_f) {
   for(x in c("bcg", "no bcg")) {
@@ -490,10 +488,10 @@ for(pop_sub in pop_sub_vec_f) {
                         pop_sub == .env$pop_sub), 
         mapping = aes(
           x = x_order_num, 
-          colour = bcg, 
+          col = bcg, 
           y = freq
-        ), 
-      alpha = 0.5
+        ),
+        alpha = 0.65
       )
     }
 }
@@ -511,12 +509,7 @@ p_5f <- p_5f +
     width = 0.75
   )
 
-col_vec_bcg_infant <- RColorBrewer::brewer.pal(
-    9, "Blues")[c(5, 9)]
-bcg_to_col_infant <- setNames(
-  col_vec_bcg_infant, 
-  c("no bcg", "bcg")
-)
+
 break_vec_trans <- seq(
   0, sqrt(max(plot_tbl_5f$freq)),
   length.out = 5
@@ -525,9 +518,9 @@ break_vec_trans <- seq(
 break_vec <- c(0, 2, 8, 16, 32)
 
 length_axis_orig_trans <- diff(sqrt(range(plot_tbl_5f$freq)))
-range_upper_bound_trans <- sqrt(max(plot_tbl_5f$freq)) + length_axis_orig_trans * 0.2
+range_upper_bound_trans <- sqrt(max(plot_tbl_5f$freq)) + length_axis_orig_trans * 0.12
 range_upper_bound <- range_upper_bound_trans^2
-y_pos_trans <- sqrt(max(plot_tbl_5f$freq)) + length_axis_orig_trans * 0.02
+y_pos_trans <- sqrt(max(plot_tbl_5f$freq)) + length_axis_orig_trans * 0.0475
 
 p_tbl <- diff_tbl %>%
   dplyr::mutate(
@@ -577,16 +570,16 @@ p_tbl <- diff_tbl %>%
 
 p_5f <- p_5f + 
   scale_colour_manual(
-    values = bcg_to_col_infant
+    values = trt_to_col
+  ) +
+  scale_fill_manual(
+    values = trt_to_col
   ) +
   guides(colour = "none") +
   scale_x_continuous(
-    breaks = 0:5
+    breaks = 0:5, 
+    labels = rep(c("No BCG", "BCG"), 3)
   ) + 
-  geom_hline(
-    aes(yintercept = 0), 
-    colour = "gray85"
-  )  +
   scale_y_continuous(
     breaks = break_vec,
     limits = c(-1, max(range_upper_bound)),
@@ -609,9 +602,9 @@ p_5f <- p_5f +
     textsize = 2.75,
     tip_length = 0.02
     ) +
-  theme(axis.title.x = element_blank(), 
-        axis.text.x = element_blank(), 
-        axis.ticks.x = element_blank())
+  theme(axis.title.x = element_blank()) + 
+  theme(axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) 
 
 vline_tbl <- tibble::tibble(
   x = rep(c(1.5, 3.5), each = 2),
@@ -636,19 +629,63 @@ plot_tbl_marker <- plot_tbl_5f %>%
     c(CD8, CD4),
     names_to = "marker",
     values_to = "lvl"
-  )
+  ) 
 plot_tbl_marker <- plot_tbl_marker %>%
   dplyr::group_by(pop_sub, marker, lvl) %>%
-  dplyr::summarise(x_order_num = mean(x_order_num),
-                   .groups = "drop")
+  dplyr::slice(1) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(x_order_num = purrr::map_dbl(pop_sub, function(x) {
+    switch(
+      x, 
+      "cd8p_cd4n" = 0.5,
+      "cd8n_cd4n" = 2.5,
+      "cd8n_cd4p" = 4.5,
+      x
+    )
+  })) %>%
+  dplyr::mutate(y = ifelse(marker == "CD4", 0, 1)) %>%
+  dplyr::select(-c(pop_sub, marker))
 
-p_marker_f <- ggplot(plot_tbl_marker,
-       aes(x = x_order_num, y = marker, fill = lvl)) +
+plot_tbl_bcg <- tibble::tibble(
+  x_order_num = 0:5, 
+  y = 2, 
+  lvl = rep(c("-", "+"), 3)
+)
+
+plot_tbl_hm <- plot_tbl_marker %>%
+  dplyr::bind_rows(plot_tbl_bcg) %>%
+  dplyr::mutate(x_order_num = x_order_num + 0.25)  %>%
+  dplyr::select(-c(pid, bcg, pop, freq, race, sex))
+
+plot_tbl_hm <- plot_tbl_hm %>%
+  dplyr::mutate(
+    x_order_num = purrr::map_dbl(as.character(x_order_num), function(x) {
+      switch(
+        x, 
+        "2.75" = 2.75, 
+        as.numeric(x)
+      )
+    })
+  )
+
+
+p_marker_f <- ggplot(plot_tbl_hm,
+       aes(x = x_order_num, y = y, fill = lvl)) +
   cowplot::theme_cowplot() +
   theme(axis.ticks.x = element_blank(),
         axis.text.x = element_blank(),
         axis.line.y = element_blank()) +
   geom_tile() +
+  geom_hline(
+    yintercept = 1.5, 
+    linetype = "solid", 
+    colour = "gray10"
+  ) +
+  geom_hline(
+    yintercept = 0.5, 
+    linetype = "solid", 
+    colour = "gray65"
+  ) +
   geom_text(aes(label = lvl)) +
   scale_fill_manual(
     values = c("-" = "white",
@@ -658,19 +695,25 @@ p_marker_f <- ggplot(plot_tbl_marker,
     values = c("-" = "white",
                "+" = "white") # was gold3
   ) +
+  geom_vline(data = tibble::tibble(x = c(1.82, 3.66)),
+    aes(xintercept = x), 
+             linetype = "dotted", 
+             colour = "gray50") +
+  scale_y_continuous(
+    breaks = 0:2, 
+    labels = c("CD4", "CD8", "BCG")
+  ) +
   guides("fill" = "none") +
   theme(axis.title = element_blank()) +
   theme(
     axis.text.y = element_text(size = 10)
   ) +
-  scale_x_continuous(
-    expand = expansion(mult = 0, add = c(0.1, 0))
-  ) +
   theme(axis.ticks.x = element_blank(), 
-        axis.text.x = element_blank())
+        axis.text.x = element_blank()) +
+  theme(axis.ticks.y = element_blank()) 
 ```
 
-```{r }
+```{r , include = FALSE}
 plot_tbl_5g <- data_tidy_freq_ifng %>%
   dplyr::rename(bcg_orig = bcg) %>%
   dplyr::filter(pop == "cd26_161") %>%
@@ -745,9 +788,23 @@ p_wc <- wilcox.test(
 
 p_5g <- ggplot(data = plot_tbl_5g, 
                mapping = aes(x = x_order_num)) +
+    geom_hline(
+    aes(yintercept = 0), 
+    colour = "gray85"
+  )  +
   cowplot::theme_cowplot() +
   cowplot::background_grid(major = "y") +
-  labs(y = bquote(paste(plain(paste("IFN")), gamma, plain(paste("+CD4+CD26+CD161+")))))
+  labs(y = "T cells (%)")
+
+p_5g <- p_5g + 
+  geom_bar(
+    data = est_ci_tbl, 
+    aes(y = est, 
+        fill = bcg), 
+    stat = "identity", 
+    width = 0.5
+  )
+
 
 for(x in c("bcg", "no bcg")) {
   p_5g <- p_5g + 
@@ -755,11 +812,17 @@ for(x in c("bcg", "no bcg")) {
       data = plot_tbl_5g %>%
         dplyr::filter(bcg == x), 
       mapping = aes(
-        colour = bcg, 
-        y = freq
-      )
+        y = freq, 
+        fill = bcg
+      ), 
+      maxwidth = 0.375, 
+      scale = "width", 
+      alpha = 0.65, 
+      shape = "circle filled"
     )
 }
+
+
 
 p_5g <- p_5g + 
   geom_point(
@@ -786,9 +849,9 @@ break_vec <- break_vec_trans^2
 break_vec <- c(0, 25, 50, 75, 1e2)
 
 length_axis_orig_trans <- diff(range(plot_tbl_5g$freq))
-range_upper_bound_trans <- max(plot_tbl_5g$freq) + length_axis_orig_trans * 0.2
+range_upper_bound_trans <- max(plot_tbl_5g$freq) + length_axis_orig_trans * 0.12
 range_upper_bound <- range_upper_bound_trans
-y_pos_trans <- max(plot_tbl_5g$freq) + length_axis_orig_trans * 0.02
+y_pos_trans <- max(plot_tbl_5g$freq) + length_axis_orig_trans * 0.0475
 
 p_tbl <- tibble::tibble(p = p) %>%
           dplyr::mutate(
@@ -825,15 +888,14 @@ p_5g <- p_5g +
   scale_colour_manual(
     values = bcg_to_col_trav
   ) +
-  guides(colour = "none") +
+  scale_fill_manual(
+    values = bcg_to_col_trav
+  ) +
+  guides(colour = "none", fill = "none") +
   scale_x_continuous(
     breaks = 0:1, 
     labels = c("TRAV1-2-", "TRAV1-2+")
   ) + 
-  geom_hline(
-    aes(yintercept = 0), 
-    colour = "gray85"
-  )  +
   scale_y_continuous(
     breaks = break_vec
   ) + 
@@ -854,10 +916,11 @@ p_5g <- p_5g +
     textsize = 2.75,
     tip_length = 0.02
     ) +
-  theme(axis.title.x = element_blank())
+  theme(axis.title.x = element_blank()) +
+  expand_limits(x = c(-0.55, 1.55))
 ```
 
-```{r }
+```{r , include = FALSE}
 dir_fig_manual <- file.path(dirname(dir_fig_vec_rel[1]), 
                             "manual", 
                             "figure_5_sub")
@@ -891,7 +954,7 @@ p_legend <- ggplot() +
     data = plot_tbl_legend, 
     aes(x = x - 0.08, y = y, col = grp), 
     size = 3, 
-    alpha = 0.5
+    alpha = 0.65
   ) +
   geom_text(
     data = plot_tbl_legend, 
@@ -901,7 +964,7 @@ p_legend <- ggplot() +
     size = 4.25 
   ) +
   scale_colour_manual(
-    values = bcg_to_col_infant
+    values = trt_to_col
   ) +
   lims(x = c(0,1), y = c(0,1)) +
   guides("alpha" = "none", "colour" = "none", 
@@ -913,10 +976,9 @@ p_fig5_right <- cowplot::plot_grid(
   p_5d, 
   p_5f, 
   ggplot() + theme_void(),
-  p_legend,
   p_5g, 
   ncol = 1, 
-  rel_heights = c(1, 1, 1, 1/4, 1/6, 1),
+  rel_heights = c(1, 1, 1, 0.25, 1),
   align = "v", 
   axis = "l"
 )
@@ -924,7 +986,7 @@ p_fig5_right <- cowplot::plot_grid(
 p_fig5 <- cowplot::ggdraw() + 
   cowplot::draw_plot(
     p_fig5_left, 
-    width = 0.8, 
+    width = 0.77, 
     x = 0.02
   ) +
   cowplot::draw_plot(
@@ -934,19 +996,100 @@ p_fig5 <- cowplot::ggdraw() +
   ) +
   cowplot::draw_plot(
     p_marker_f, 
-    width = 0.3625, 
-    x = 0.63, 
-    y = 0.3, 
-    height = (1/6)/(4 + 1/6 + 1/4), 
+    width = 0.366, 
+    x = 0.634375, 
+    y = 0.24, 
+    height = (1/3)/(4 + 1/3) 
   ) 
-path_fig <- file.path(dir_fig_manu, "fig_5.pdf")
+y_vec <- c(
+  0.84, 
+  0.555, 
+  0.31, 
+  0.025
+) 
+x_vec <- c(
+  0.61, 
+  0.62, 
+  0.62, 
+  0.605
+)
+for(i in 1:4) {
+  p_fig5 <- p_fig5 + 
+    cowplot::draw_label(
+      label = switch(
+        as.character(i), 
+        "1" = bquote(paste(plain(paste("IFN")), gamma,
+                        plain(paste("+ ")),
+                        gamma, delta, plain(paste("TCR+")))), 
+        bquote(paste(plain(paste("IFN")), gamma,
+                        plain(paste("+ ")),
+                        plain(paste("CD4+CD26+CD161+"))))), 
+      x = x_vec[i], 
+      y = y_vec[i], 
+      angle = 90, 
+      hjust = 0, 
+      vjust = 0
+    )
+}
+x_l <- 0.03
+x_r <- 0.565
+label_tbl <- tibble::tibble(
+  lbl = LETTERS[1:7],
+  x = c(
+    x_l,
+    x_r,
+    x_l,
+    x_r,
+    x_l,
+    x_r, 
+    x_r
+  ), 
+  y = c(
+    0.97, 
+    0.985, 
+    0.63, 
+    0.77, 
+    0.29, 
+    0.52, 
+    0.24
+  )
+)
+
+for(i in seq_len(nrow(label_tbl))) {
+  p_fig5 <- p_fig5 + 
+    cowplot::draw_text(
+      text = label_tbl$lbl[i],
+      x = label_tbl$x[i],
+      y = label_tbl$y[i]
+    )
+}
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_5.pdf"
+  )
+path_fig_rel_png <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_5.png"
+  )
+
 cowplot::ggsave2(
-  path_fig, 
+  path_fig_rel_png, 
   p_fig5, 
   height = 29.4, 
   width = 19, 
   units = "cm"
 )
-od(path_fig)
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_fig5, 
+  height = 29.4, 
+  width = 19, 
+  units = "cm"
+)
+```
 
+
+```{r , results = "asis"}
+knitr::include_graphics(path_fig_rel_png)
 ```

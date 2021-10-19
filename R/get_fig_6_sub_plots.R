@@ -94,20 +94,10 @@ get_fig_6_sub_plots <- function() {
       p <- p +
         ggforce::geom_sina(
           data = data_raw_pop %>%
-            dplyr::filter(x_order == .env$x_order) %>%
-            dplyr::mutate(vacc = purrr::map_chr(as.character(grp), function(x) {
-              switch(
-                x,
-                "day_0" = ,
-                "no bcg" = "unvacc",
-                "day_365" = ,
-                "bcg" = "vacc",
-                stop(paste0(x, " not recognised"))
-              )
-            })),
-          aes(x = x_order_num, y = freq, col = vacc, shape = age,
+            dplyr::filter(x_order == .env$x_order),
+          aes(x = x_order_num, y = freq, col = grp,
               size = age),
-          alpha = 0.5,
+          alpha = 0.65,
           maxwidth = 0.75,
           scale = "width"
         )
@@ -137,16 +127,10 @@ get_fig_6_sub_plots <- function() {
 
     p_raw <- p +
       scale_colour_manual(
-        values = c(
-          "unvacc" = "dodgerblue",
-          "vacc" = "red"
-        )
+        values = trt_to_col
       ) +
       theme(axis.text.x = element_blank(),
             axis.title.x = element_blank()) +
-      scale_shape_manual(
-        values = age_to_shape
-      ) +
       scale_size_manual(
         values = c(
           "infant" = 1,
@@ -370,6 +354,7 @@ get_fig_6_sub_plots <- function() {
     orig_to_adj_x <- c("4.5" = 4.5,
                        "8.5" = 9,
                        "12.5" = 13.15)
+
     p_diff <- ggplot(data = diff_tbl_pop,
                      mapping = aes(x = x_order_num,
                                    shape = var_exp,
@@ -401,18 +386,10 @@ get_fig_6_sub_plots <- function() {
             axis.ticks.x = element_blank(),
             axis.title.x = element_blank()) +
       scale_shape_manual(
-        values = c(
-          "bcg" = "triangle filled",
-          "day_365" = "circle filled",
-          "adult_bcg" = "square filled"
-        )
+        values = var_exp_to_shape
       ) +
       scale_fill_manual(
-        values = c(
-          "bcg" = "#7570b3",
-          "day_365" = "#1b9e77",
-          "adult_bcg" = "#d95f02"
-        )
+        values = var_exp_to_fill
       ) +
       guides("shape" = "none", "fill" = "none")
 
@@ -430,6 +407,7 @@ get_fig_6_sub_plots <- function() {
         names_to = "marker",
         values_to = "lvl"
       )
+
     plot_tbl_marker <- plot_tbl_marker %>%
       dplyr::group_by(pop_sub, marker, lvl) %>%
       dplyr::summarise(x_order_num = mean(x_order_num),

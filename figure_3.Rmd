@@ -284,8 +284,7 @@ pop_vec <- unique(data_mod_hladr_infant$pop) %>%
 pop <- "mait"
 conf_vec_infant <- c(
   "none" = "", 
-  "pre_specified" = "+ sex + race"#, 
-  # "data_specified" = " + ethnicity + length + gest_age + weight"
+  "pre_specified" = "+ sex + race"
   )
 results_tbl_fig3_std <- purrr::map_df(pop_vec, function(pop) {
   print(pop)
@@ -856,21 +855,12 @@ p_fig3_grp <- cowplot::plot_grid(
   rel_widths = c(0.1, 2, 1, 0.1, 2, 1), 
   align = "hv", 
   axis = "lrtb"
-  #labels = LETTERS[1:7],
-  #hjust = -0.175
 )
 
 path_fig_rel_pdf <- file.path(
     dir_fig_vec_rel["manu"],
     "fig_3-grp.pdf"
   )
-cowplot::ggsave2(
-  path_fig_rel_pdf, 
-  p_fig3_grp, 
-  height = 29 * 3/4, 
-  width = 19, 
-  units = "cm"
-)
 
 p_fig3 <- p_fig3_grp
 x_vec <- rep(c(2/6, 5/6), 3)
@@ -941,6 +931,30 @@ p_fig3 <- p_fig3 +
     y = 0.72,
     size = 12
   )
+
+x_l <- 0.1
+x_r <- 0.58
+label_tbl <- tibble::tibble(
+  lbl = LETTERS[1:5],
+  x = c(
+    x_l,
+    0.59,
+    x_l,
+    0.585,
+    x_l
+  ), 
+  y = c(0.985, 0.985,
+        0.67, 0.67,
+        0.33)
+)
+for(i in seq_len(nrow(label_tbl))) {
+  p_fig3 <- p_fig3 + 
+    cowplot::draw_text(
+      text = label_tbl$lbl[i],
+      x = label_tbl$x[i],
+      y = label_tbl$y[i]
+    )
+}
 
 
 path_fig_rel_pdf <- file.path(

@@ -166,7 +166,7 @@ It generally seems that the square root transformation makes the data nicer to w
 
 ### Calculation
 
-```{r }
+```{r , include = FALSE}
 pop_pop_sub_to_trans_obj_tbl <- data_tidy_fig6 %>%
   dplyr::group_by(pop_pop_sub, grp) %>%
   dplyr::summarise(med = median(freq, na.rm = TRUE),
@@ -181,7 +181,7 @@ pop_pop_sub_to_trans_obj <- pop_pop_sub_to_trans_obj_tbl$trans %>%
   setNames(pop_pop_sub_to_trans_obj_tbl$pop_pop_sub)
 ```
 
-```{r }
+```{r , include = FALSE}
 pop_pop_sub <- pop_pop_sub_vec[1]
 results_list_fig6 <- purrr::map(pop_pop_sub_vec, function(pop_pop_sub) {
   data_tidy_mod <- data_tidy_fig6 %>%
@@ -414,22 +414,24 @@ Moderate effects with highly-significant p-values for $\gamma\delta$ T cells, wh
 
 Some support for an increase in `CD45RA-CCR7+` MAIT cells (p = 0.009; q = 0.14). 
 
-```{r }
+```{r , results = "asis"}
 results_tbl_fig6_diff %>%
   dplyr::filter(var_exp == "bcg") %>%
   dplyr::select(pop, pop_sub, diff_est_std, diff_p, diff_p_bonf) %>%
-  dplyr::arrange(diff_p)
+  dplyr::arrange(diff_p) %>%
+  pander::pandoc.table()
 ```
 
 #### Effect of BCG in adults
 
 No clear effect.
 
-```{r }
+```{r , results = "asis"}
 results_tbl_fig6_diff %>%
   dplyr::filter(var_exp == "day_365") %>%
   dplyr::select(pop, pop_sub, diff_est_std, diff_p, diff_p_bonf) %>%
-  dplyr::arrange(diff_p)
+  dplyr::arrange(diff_p) %>%
+  pander::pandoc.table()
 ```
 
 #### Effect of age amongst BCG-(re)vaccinated participants
@@ -440,11 +442,12 @@ Strong effects also for MAIT cells, with `CD45RA+CCR7-` becoming  `CD45RA-CCR7-`
 
 Small but significant decrease in `CD45RA+CCR7-` NKT cells (q = 0.005). Seem to become either `CD45RA-CCR7-` (p = 0.08; q = 1) or `CD45RA+CCR7+` (p = 0.13; q = 1) cells. 
 
-```{r }
+```{r , results = "asis"}
 results_tbl_fig6_diff %>%
   dplyr::filter(var_exp == "adult_bcg") %>%
   dplyr::select(pop, pop_sub, diff_est_std, diff_p, diff_p_bonf) %>%
-  dplyr::arrange(diff_p)
+  dplyr::arrange(diff_p) %>%
+  pander::pandoc.table()
 ```
 
 #### Effect of age amongst non-BCG-(re)vaccinated participants
@@ -455,11 +458,12 @@ Smaller and non-significant decrease in `CD45RA+CCR7-` NKT cells (p = 0.06; q = 
 
 Non-significant (after multiple comparisons) reduction in `CD45RA-CCR7-` $\gamma\delta$ T cells (p = 0.0465; q = 0.74) that was non-significant but in the same direction in BCG-vaccinated infants (p = 0.045; q = 1).
 
-```{r }
+```{r , results = "asis"}
 results_tbl_fig6_diff %>%
   dplyr::filter(var_exp == "adult_no_bcg") %>%
   dplyr::select(pop, pop_sub, diff_est_std, diff_p, diff_p_bonf) %>%
-  dplyr::arrange(diff_p)
+  dplyr::arrange(diff_p) %>%
+  pander::pandoc.table()
 ```
 
 ### Plots
@@ -526,48 +530,45 @@ for(i in 1:4) {
     )
 }
 path_fig_grp <- file.path(dir_fig_manu, "fig_6-grp.pdf")
-cowplot::ggsave2(
-  path_fig_grp, 
-  p_out, 
-  height = 29.4 * 0.9, 
-  width = 19, 
-  units = "cm"
+
+label_tbl <- tibble::tibble(
+  lbl = LETTERS[1:4],
+  x = 0.025, 
+  y = seq(1, 0.25, by = -0.25) - 0.01
 )
-#od(path_test)
+for(i in seq_len(nrow(label_tbl))) {
+  p_out <- p_out + 
+    cowplot::draw_text(
+      text = label_tbl$lbl[i],
+      x = label_tbl$x[i],
+      y = label_tbl$y[i]
+    )
+}
 
 # Plot legend
 # =====================
 
 
-grp_to_col = c(
-  "no bcg" = "dodgerblue",
-  "bcg" = "red",
-  "day_0" = "dodgerblue",
-  "day_365" = "red"
-)
+grp_to_col = trt_to_col[c(
+  "no bcg",
+  "bcg",
+  "day_0",
+  "day_365"
+)]
 grp_to_x <- setNames(
   rep(c(0, 0.25), each = 2) + 0.125, # was 0.225
   names(grp_to_col)
 )
-grp_to_shape <- setNames(
-  rep(age_to_shape[1:2], each = 2)
-  ,
-  c(
-    "no bcg",
-    "bcg", 
-    "day_0", 
-    "day_365"
-    )
-)
+
 grp_to_y <- setNames(
   rep(c(0.5, 0.3), 2),
   names(grp_to_col)
 )
 grp_to_lab <- setNames(
-  c("Infant: No BCG",
+  c("Infant: no BCG",
     "Infant: BCG", 
-    "Adult: Before BCG", 
-    "Adult: After BCG"),
+    "Adult: before BCG", 
+    "Adult: after BCG"),
   names(grp_to_y)
 )
 plot_tbl_legend_grp <- purrr::map_df(unique(names(grp_to_col)), function(grp) {
@@ -575,26 +576,10 @@ plot_tbl_legend_grp <- purrr::map_df(unique(names(grp_to_col)), function(grp) {
     grp = grp, 
     x = grp_to_x[grp], 
     y = grp_to_y[grp],
-    col = grp_to_col[grp], 
-    alpha = 0.5, 
-    lbl = grp_to_lab[grp], 
-    shape = grp_to_shape
+    lbl = grp_to_lab[grp]
   )
 })
 
-
-grp_or_var_exp_to_shape <- c(
-  "bcg_diff" = "triangle filled",
-  "day_365_diff" = "circle filled",
-  "adult_bcg" = "square filled"
-) %>%
-  c(grp_to_shape)
-
-var_exp_to_fill <- c(
-  "bcg_diff" = "#7570b3",
-  "day_365_diff" = "#1b9e77",
-  "adult_bcg" = "#d95f02"
-)
 var_exp_to_y <- setNames(
   rev(c(0.2, 0.4, 0.6)) - 0.1, 
   names(var_exp_to_fill)
@@ -614,8 +599,6 @@ plot_tbl_legend_diff <- purrr::map_df(rev(unique(names(var_exp_to_x))), function
     var_exp = var_exp, 
     x = var_exp_to_x[var_exp], 
     y = var_exp_to_y[var_exp],
-    shape = var_exp_to_shape[var_exp],
-    fill = var_exp_to_fill[var_exp],
     lbl = var_exp_to_lab[var_exp]
   )
 })
@@ -623,9 +606,8 @@ p_legend <- ggplot() +
   theme_void() + 
   geom_point(
     data = plot_tbl_legend_grp, 
-    aes(x = x - 0.0175, y = y, col = grp, 
-        alpha = alpha, shape = grp), 
-    size = 3
+    aes(x = x - 0.0175, y = y, col = grp), 
+    size = 3, alpha = 0.65
   ) +
   geom_text(
     data = tibble::tibble(
@@ -671,10 +653,10 @@ p_legend <- ggplot() +
     size = 4.25 
   ) +
   scale_colour_manual(
-    values = grp_to_col
+    values = trt_to_col
   ) +
   scale_shape_manual(
-    values = grp_or_var_exp_to_shape
+    values = var_exp_to_shape
   ) +
   scale_fill_manual(
     values = var_exp_to_fill 
@@ -699,14 +681,33 @@ p_test_full <- cowplot::ggdraw() +
     width = 1, 
     height = 1 - plot_frac + plot_legend_add_height
   )
-path_fig <- file.path(dir_fig_manu, "fig_6.pdf")
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_6.pdf"
+  )
+path_fig_rel_png <- file.path(
+    dir_fig_vec_rel["manu"],
+    "fig_6.png"
+  )
+
 cowplot::ggsave2(
-  path_fig, 
+  path_fig_rel_png, 
   p_test_full, 
   height = 29.4, 
   width = 19, 
   units = "cm"
 )
 
-od(path_fig)
+cowplot::ggsave2(
+  path_fig_rel_pdf, 
+  p_test_full, 
+  height = 29.4, 
+  width = 19, 
+  units = "cm"
+)
+```
+
+```{r , results = "asis"}
+knitr::include_graphics(path_fig_rel_png)
 ```

@@ -415,7 +415,7 @@ get_fig_3_sub_plots <- function() {
           data = plot_tbl_raw_tidy %>%
             dplyr::filter(trt == trt_lvl),
           aes(x = trt_num, y = hladr, col = trt),
-          alpha = 0.5, shape = "triangle",
+          alpha = 0.65,
           maxwidth = ifelse(pop == "cd4", 1, 2/3)
         )
     }

@@ -96,7 +96,7 @@ get_fig_2s_sub_plots <- function() {
           data = data_raw_pop %>%
             dplyr::filter(x_order == .env$x_order),
           aes(x = x_order_num, y = freq, col = grp),
-          alpha = 0.5,
+          alpha = 0.65,
           maxwidth = 0.75,
           scale = "width"
         )
@@ -128,7 +128,7 @@ get_fig_2s_sub_plots <- function() {
 
     p_raw <- p +
       scale_colour_manual(
-        values = grp_to_col
+        values = trt_to_col
       ) +
       theme(axis.text.x = element_blank(),
             axis.title.x = element_blank()) +

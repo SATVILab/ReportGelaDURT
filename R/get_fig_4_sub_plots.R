@@ -54,19 +54,20 @@ get_fig_4_sub_plots <- function() {
         ggforce::geom_sina(
           data = data_raw_pop %>%
             dplyr::filter(days == day_curr) %>%
-            dplyr::mutate(days_num = chr_to_num_days[days]),
-          aes(x = days_num, y = hladr, col = day_type),
-          alpha = 0.5, shape = "circle",
+            dplyr::mutate(days_num = chr_to_num_days[days]) %>%
+            dplyr::mutate(days_col = paste0("day_", days)),
+          aes(x = days_num, y = hladr, col = days_col),
+          alpha = 0.65, shape = "circle",
           maxwidth = 0.75,
           scale = "width"
         )
     }
     p <- p +
       scale_colour_manual(
-        values = c("pre_bcg" = "red",
-                   "post_bcg" = "dodgerblue")
+        values = trt_to_col
       ) +
       guides("colour" = "none")
+
 
     p <- p +
       geom_errorbar(

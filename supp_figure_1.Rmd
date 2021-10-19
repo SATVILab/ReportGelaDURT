@@ -117,7 +117,6 @@ power_tbl <- purrr::map_df(dbn_vec, function(dbn) {
 
 
 ```{r }
-
 chr_to_num_cutoff <- c(
   "0.005" = 3,
   "0.01" = 2,
@@ -229,19 +228,54 @@ p_dbn <- ggplot(plot_tbl %>%
 ```
 
 ```{r }
-p_power_grid <- cowplot::plot_grid(p_power, p_dbn, ncol = 1,
-                   align = "v",
-                   axis = "lr",
-                   rel_heights = c(1.5, 1))
-path_fig <- file.path(dir_fig_manu, "fig1s.pdf")
+p_power_grid <- cowplot::plot_grid(
+  p_power, p_dbn,
+  ncol = 1,
+  align = "v",
+  axis = "lr",
+  rel_heights = c(1.5, 1)
+ )
+
+label_tbl <- tibble::tibble(
+  lbl = LETTERS[1:2],
+  x = 0.025, 
+  y = c(0.98, 0.4)
+)
+for(i in seq_len(nrow(label_tbl))) {
+  p_power_grid <- p_power_grid + 
+    cowplot::draw_text(
+      text = label_tbl$lbl[i],
+      x = label_tbl$x[i],
+      y = label_tbl$y[i]
+    )
+}
+
+path_fig_rel_pdf <- file.path(
+    dir_fig_vec_rel["manu"],
+    "supp_fig_1.pdf"
+  )
+path_fig_rel_png <- file.path(
+    dir_fig_vec_rel["manu"],
+    "supp_fig_1.png"
+  )
+
 cowplot::ggsave2(
-  path_fig,
+  path_fig_rel_png,
   p_power_grid,
   height = 29.4 * 2/3,
   width = 19,
   units = "cm"
 )
 
-od(path_fig)
+cowplot::ggsave2(
+  path_fig_rel_pdf,
+  p_power_grid,
+  height = 29.4 * 2/3,
+  width = 19,
+  units = "cm"
+)
 ```
 
+```{r , results = "asis"}
+knitr::include_graphics(path_fig_rel_png)
+```

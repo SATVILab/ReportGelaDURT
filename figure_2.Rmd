@@ -543,11 +543,7 @@ ggplot(
 ```{r , eval = TRUE, include = FALSE}
 pop_vec <- unique(data_mod_freq_infant$pop)
 pop <- "mait"
-conf_vec_infant <- c(
-  "none" = "", 
-  "pre_specified" = "+ sex + race"#, 
-  # "data_specified" = " + ethnicity + length + gest_age + weight"
-  )
+
 results_tbl_fig2_infant <- purrr::map_df(pop_vec, function(pop) {
   print(pop)
   data_mod <- data_mod_freq_infant %>%
@@ -1058,7 +1054,7 @@ pop_vec <- unique(data_mod_freq_adult$pop)
 pop <- "mait"
 conf_vec <- c(
   "none" = "", 
-  "pre_specified" = " + sex + sex:age + race + race:age + bcg + bcg:age"#, 
+  "pre_specified" = " + sex + race + bcg"#, 
   # "data_specified" = " + ethnicity + length + gest_age + weight"
   )
 results_tbl_fig2_age <- purrr::map_df(pop_vec, function(pop) {
@@ -1978,14 +1974,6 @@ path_fig_rel_pdf <- file.path(
     dir_fig_vec_rel["manu"],
     "fig_2-grp.pdf"
   )
-cowplot::ggsave2(
-  path_fig_rel_pdf, 
-  p_fig2_grp, 
-  height = 29, 
-  width = 19, 
-  units = "cm"
-)
-
 p_fig2_diff <- p_fig2_grp
 x_vec <- rep(c(2/6, 5/6), 4)
 nudge_y_diff <- 0.0125
@@ -2105,7 +2093,7 @@ cowplot::ggsave2(
   width = 19, 
   units = "cm"
 )
-od(path_fig_rel_pdf)
+#od(path_fig_rel_pdf)
 cowplot::ggsave2(
   path_fig_rel_png, 
   p_fig2, 
