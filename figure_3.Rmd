@@ -119,7 +119,7 @@ ggplot(data_mod_hladr_infant %>%
 
 Nothing striking.
 
-```{r }
+```{r , eval = FALSE}
 data_plot_hladr_infant_cont <- data_mod_hladr_infant %>%
   dplyr::select(-(age:sex)) %>%
   tidyr::pivot_longer(
@@ -171,7 +171,7 @@ cowplot::ggsave2(
 )
 ```
 
-```{r , results = "asis"}
+```{r , results = "asis", eval = FALSE}
 knitr::include_graphics(path_fig_rel_png)
 ```
 
@@ -179,7 +179,7 @@ knitr::include_graphics(path_fig_rel_png)
 
 BCG papers appear slightly longer with slightly higher gestational ages, and are possibly heavier.
 
-```{r }
+```{r , eval = FALSE}
 ggplot(
   data_plot_hladr_infant_cont %>%
     dplyr::group_by(conf_cont) %>%
@@ -212,7 +212,7 @@ ggplot(
 
 Moderate race effect, perhaps, for CD4 T cells. 
 
-```{r }
+```{r , eval = FALSE}
 ggplot(
   data_mod_hladr_infant, 
   aes(x = bcg, y = hladr, fill = race, col = race)
@@ -243,7 +243,7 @@ ggplot(
 
 Gender effects less strong. Treatment effect in opposite direction between females and females for NKT cells (but likely insignificant for both groups).
 
-```{r }
+```{r , eval = FALSE}
 ggplot(
   data_mod_hladr_infant %>%
     dplyr::mutate(sex = ifelse(is.na(sex), "unknown", sex)), 
@@ -972,7 +972,7 @@ cowplot::ggsave2(
   width = 19, 
   units = "cm"
 )
-od(path_fig_rel_pdf)
+# od(path_fig_rel_pdf)
 cowplot::ggsave2(
   path_fig_rel_png, 
   p_fig3, 
