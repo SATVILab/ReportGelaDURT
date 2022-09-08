@@ -504,6 +504,5 @@ if (dir.exists("/home/rstudio/ProjectGelaDURT")) {
       file.path(dir_output, x)
     )
   }
-
 }
 ```
