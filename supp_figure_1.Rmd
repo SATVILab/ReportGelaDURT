@@ -264,7 +264,8 @@ cowplot::ggsave2(
   p_power_grid,
   height = 29.4 * 2/3,
   width = 19,
-  units = "cm"
+  units = "cm",
+  dpi = 300 * (1 + params$high_res * 4)
 )
 
 cowplot::ggsave2(
@@ -272,7 +273,8 @@ cowplot::ggsave2(
   p_power_grid,
   height = 29.4 * 2/3,
   width = 19,
-  units = "cm"
+  units = "cm",
+  dpi = 300 * (1 + params$high_res * 4)
 )
 ```
 

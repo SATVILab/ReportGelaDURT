@@ -2100,7 +2100,8 @@ cowplot::ggsave2(
   p_fig2,
   height = 29,
   width = 19,
-  units = "cm"
+  units = "cm",
+  dpi = 300 * (1 + params$high_res * 4)
 )
 ```
 

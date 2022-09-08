@@ -471,7 +471,8 @@ cowplot::ggsave2(
   p_test_full, 
   height = 29.4, 
   width = 19, 
-  units = "cm"
+  units = "cm",
+  dpi = 300 * (1 + params$high_res * 4)
 )
 
 cowplot::ggsave2(
@@ -479,10 +480,30 @@ cowplot::ggsave2(
   p_test_full, 
   height = 29.4, 
   width = 19, 
-  units = "cm"
+  units = "cm",
+  dpi = 300 * (1 + params$high_res * 4)
 )
 ```
 
 ```{r , results = "asis"}
 knitr::include_graphics(path_fig_rel_png)
+```
+
+```{r }
+if (dir.exists("/home/rstudio/ProjectGelaDURT")) {
+  dir_output <- file.path(
+    "/home/rstudio/ProjectGelaDURT",
+    "Output", "figures", "manuscript"
+    )
+  if (dir.exists(dir_output)) unlink(dir_output, recursive = TRUE)
+  dir.create(dir_output, recursive = TRUE)
+  fn_vec <- list.files("_book/figures/manuscript")
+  for (x in fn_vec) {
+    file.copy(
+      file.path("_book/figures/manuscript", x),
+      file.path(dir_output, x)
+    )
+  }
+
+}
 ```

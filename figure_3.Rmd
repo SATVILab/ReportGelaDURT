@@ -970,7 +970,8 @@ cowplot::ggsave2(
   p_fig3, 
   height = 29 * 3/4, 
   width = 19, 
-  units = "cm"
+  units = "cm",
+  dpi = 300 * (1 + params$high_res * 4)
 )
 # od(path_fig_rel_pdf)
 cowplot::ggsave2(
@@ -978,7 +979,8 @@ cowplot::ggsave2(
   p_fig3, 
   height = 29 * 3/4, 
   width = 19, 
-  units = "cm"
+  units = "cm",
+  dpi = 300 * (1 + params$high_res * 4)
 )
 ```
 
