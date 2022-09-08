@@ -42,8 +42,10 @@
 
 	"mounts": [
 		// raw data, output and archive folders. in Google shared drive.
+		"source=/mnt/h/Shared drives/ProjectGelaDURT,target=/home/rstudio/ProjectGelaDURT,type=bind,consistency=cached",
 		// renv shared directory. Keep the same across all projects
-		"source=/home/${localEnv:USER},target=/home/rstudio,type=bind,consistency=cached"
+		"source=/home/${localEnv:USER}/.renv,target=/home/rstudio/.renv,type=bind,consistency=cached",
+		"source=/home/${localEnv:USER}/.gitconfig,target=/home/rstudio/.gitconfig,type=bind,consistency=cached"
 	],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.

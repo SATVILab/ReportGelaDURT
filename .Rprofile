@@ -1,6 +1,8 @@
 source("renv/activate.R")
 if (interactive()) {
-  alwaysloaded::run_std()
+  if (requireNamespace("alwaysloaded", quietly = TRUE)) {
+    alwaysloaded::run_std()
+  }
 }
 library(magrittr)
 library(grDevices)
